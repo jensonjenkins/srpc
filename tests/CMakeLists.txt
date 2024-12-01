@@ -8,8 +8,10 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 set (TEST_LIST
-    lexer.cpp
+    parser_test.cpp
+    lexer_test.cpp
     )
-add_executable(tests ${TEST_LIST}) 
-target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_executable(unit_tests ${TEST_LIST}) 
+target_link_libraries(unit_tests PRIVATE Catch2::Catch2WithMain)
 

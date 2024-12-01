@@ -8,18 +8,17 @@
 namespace srpc {
 
 /**
- * Parse contracts and represents them in C++ source structs
+ * Parse raw contract files into tokens
  */
 class lexer {
 private:
-
-public:
     std::string     _input;
     std::uint32_t   _input_len;
     std::uint32_t   _cursor;
     std::uint32_t   _peek_cursor;
     char            _cur_char;
 
+public:
     lexer() = delete;
     lexer(std::string input) : _input(input), _input_len(_input.size()), _peek_cursor(0) {}
     ~lexer() {}
@@ -53,6 +52,18 @@ public:
         case '}':
             cur_token.literal = "}";
             cur_token.type = token_t::RBRACE;
+            break;
+        case '(':
+            cur_token.literal = "(";
+            cur_token.type = token_t::LPAREN;
+            break;
+        case ')':
+            cur_token.literal = ")";
+            cur_token.type = token_t::RPAREN;
+            break;
+        case ';':
+            cur_token.literal = ";";
+            cur_token.type = token_t::SEMICOLON;
             break;
         case 0:
             cur_token.literal = "";
