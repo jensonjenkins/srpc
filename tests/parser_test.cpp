@@ -1,3 +1,4 @@
+#include "srpc/rpc_element.hpp"
 #include <srpc/lexer.hpp>
 #include <srpc/parser.hpp>
 
@@ -8,6 +9,16 @@ namespace srpc {
 
 size_t trace::indent_level = 0;
 bool trace::enable_trace = 0;
+
+template <typename To, typename From>
+std::unique_ptr<To> try_cast_unique(std::unique_ptr<From>& from, std::string err_msg) {
+    if (auto raw = static_cast<To*>(from.get())) {
+        from.release();
+        return std::unique_ptr<To>(raw);
+    }
+    INFO("cast fail: "<<err_msg);
+    return nullptr;
+}
 
 void check_parser_errors(parser& p) {
     std::vector<std::string> errors = p.errors();
@@ -26,12 +37,29 @@ TEST_CASE("Parse Message", "[parse][message]") {
                 bool arg3 = 3;
             }
         )";
+        std::vector<field_descriptor> test_case {
+            {0, 1, "arg1", typeid(std::string)}, 
+            {1, 2, "arg2", typeid(int32_t)}, 
+            {0, 3, "arg3", typeid(bool)}, 
+        };
+
         lexer l(input);
         parser p(l); 
         contract* c = p.parse_contract();
         check_parser_errors(p);
 
-        REQUIRE(c->element_map.size() == 1);
+        REQUIRE(c->elements.size() == 1);
+        auto msg = try_cast_unique<message>(c->elements[0], "");
+
+        REQUIRE(msg->name == "Request");
+        for (int i = 0; i < test_case.size(); i++) {
+            auto field = msg->fields()[i].get();
+            REQUIRE(field->is_optional == test_case[i].is_optional);
+            REQUIRE(field->field_number == test_case[i].field_number);
+            REQUIRE(field->name == test_case[i].name);
+            REQUIRE(field->type == test_case[i].type);
+        }
+
     }
 
     SECTION("Nested Message") {

@@ -9,7 +9,7 @@
 
 namespace srpc {
 
-#define TRACE trace t(std::string(__FUNCTION__));
+#define FUNCTION_TRACE trace t(std::string(__FUNCTION__));
 
 /**
  * Parse tokens into rpc_elements, and grouping them into contracts
@@ -33,7 +33,8 @@ public:
     }
 
     contract* parse_contract() noexcept { 
-        TRACE;
+        FUNCTION_TRACE;
+
         contract* c = new contract();
         while(_cur_token.type != token_t::EOFT){
             rpc_element* e = parse_element();
@@ -44,7 +45,8 @@ public:
     }
 
     rpc_element* parse_element() {
-        TRACE;
+        FUNCTION_TRACE;
+
         switch (_cur_token.type) {
         case token_t::MESSAGE:
             return parse_message();
@@ -59,7 +61,8 @@ public:
     }
 
     message* parse_message() noexcept { 
-        TRACE;
+        FUNCTION_TRACE;
+
         message* msg = new message(_cur_token);
         if (!expect_peek(token_t::IDENTIFIER)) { return nullptr; }
 
@@ -79,7 +82,8 @@ public:
     service* parse_service() noexcept { return nullptr; }
 
     field_descriptor* parse_message_field() noexcept {
-        TRACE;
+        FUNCTION_TRACE;
+
         field_descriptor* fd = new field_descriptor;
         if (cur_token_is(token_t::OPTIONAL)) {
             fd->is_optional = true;
