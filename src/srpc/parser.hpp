@@ -32,16 +32,14 @@ public:
         next_token(); // initialize both _cur and _peek tokens
     }
 
-    contract* parse_contract() noexcept { 
+    void parse_contract() noexcept { 
         FUNCTION_TRACE;
 
-        contract* c = new contract();
         while(_cur_token.type != token_t::EOFT){
             rpc_element* e = parse_element();
-            if (e) { c->add_element(std::move(e)); }
+            if (e) { contract::add_element(std::move(e)); }
             next_token();
         }
-        return c;
     }
 
     rpc_element* parse_element() {
@@ -92,26 +90,37 @@ public:
 
         switch (_cur_token.type) {
         case token_t::BOOL_T:
-            fd->type = typeid(bool);
+            fd->type = "bool";
             break;
         case token_t::INT8_T:
-            fd->type = typeid(int8_t);
+            fd->type = "i8";
             break;
         case token_t::INT16_T:
-            fd->type = typeid(int16_t);
+            fd->type = "i16";
             break;
         case token_t::INT32_T:
-            fd->type = typeid(int32_t);
+            fd->type = "i32";
             break;
         case token_t::INT64_T:
-            fd->type = typeid(int64_t);
+            fd->type = "i64";
             break;
         case token_t::STRING_T:
-            fd->type = typeid(std::string);
+            fd->type = "str";
             break;
         case token_t::CHAR_T:
-            fd->type = typeid(char);
+            fd->type = "char";
             break;
+        case token_t::IDENTIFIER:
+            {
+                auto it = contract::elements.find(_cur_token.literal);
+                if (it->second) {
+                    fd->type = _cur_token.literal;
+                } else {
+                    _errors.push_back("Undefined identifier in field type");
+                    return nullptr;
+                }
+                break;
+            }
         default:
             _errors.push_back("Expected cur_token to be a field_type.");
             return nullptr;

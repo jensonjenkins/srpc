@@ -4,13 +4,13 @@
 #include <cstddef>
 #include <vector>
 #include <typeindex>
+#include <unordered_map>
 #include <functional>
 
 namespace srpc {
 
 struct rpc_element {
     std::string name;
-    std::size_t id = -1;
 
     virtual ~rpc_element() noexcept = default;
     virtual const std::string to_string() const noexcept = 0;
@@ -31,13 +31,13 @@ public:
 };
 
 struct field_descriptor {
-    bool            is_optional;
-    int             field_number;
-    std::string     name;
-    std::type_index type;
+    bool        is_optional;
+    int         field_number;
+    std::string name;
+    std::string type;
 
-    field_descriptor() : type(typeid(nullptr_t)) {}
-    field_descriptor(bool opt, int fn, std::string name, std::type_index t) 
+    field_descriptor() {}
+    field_descriptor(bool opt, int fn, std::string name, std::string t) 
         : is_optional(opt), field_number(fn), name(name), type(t) {};
 };
 
@@ -61,10 +61,9 @@ public:
 struct contract {
     contract() {}
     ~contract() = default;
-
-    void add_element(rpc_element* e) { elements.push_back(std::unique_ptr<rpc_element>(e)); e->id = elements.size() - 1; }
-
-    std::vector<std::unique_ptr<rpc_element>> elements;
+    static void add_element(rpc_element* e) { elements.emplace(e->name, std::unique_ptr<rpc_element>(e)); }
+    
+    static std::unordered_map<std::string, std::unique_ptr<rpc_element>> elements;
 };
 
 
