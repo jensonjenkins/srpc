@@ -1,4 +1,4 @@
-#include "../src/srpc/lexer.hpp"
+#include <srpc/lexer.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 #include <string>

@@ -1,9 +1,13 @@
-#include "../src/srpc/lexer.hpp"
-#include "../src/srpc/parser.hpp"
+#include <srpc/lexer.hpp>
+#include <srpc/parser.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_message.hpp>
 
 namespace srpc {
+
+size_t trace::indent_level = 0;
+bool trace::enable_trace = 0;
 
 void check_parser_errors(parser& p) {
     std::vector<std::string> errors = p.errors();

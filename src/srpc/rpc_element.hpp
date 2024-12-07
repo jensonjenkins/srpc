@@ -5,6 +5,7 @@
 #include <vector>
 #include <typeindex>
 #include <functional>
+#include <iostream>
 #include <unordered_map>
 
 namespace srpc {
