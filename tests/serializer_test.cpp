@@ -1,4 +1,6 @@
+#include <cstdint>
 #include <limits>
+#include <srpc/core.hpp>
 #include <srpc/serializer.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -6,8 +8,8 @@
 
 namespace srpc {
 
-TEST_CASE("Serializing primitive types", "[serialize][primitive]") {
-    SECTION("Message: single int8_t") {
+TEST_CASE("serializing primitive types", "[serialize][primitive]") {
+    SECTION("single primitive") {
         int8_t arg1 = 5;
         std::string name = "i8";
         std::vector<uint8_t> res = serializer::serialize(name, arg1);
@@ -18,7 +20,7 @@ TEST_CASE("Serializing primitive types", "[serialize][primitive]") {
         REQUIRE(serialized == res);
     }
 
-    SECTION("Message: multiple primitives") {
+    SECTION("multiple primitives") {
         int8_t arg1 = 5;
         int32_t arg2 = std::numeric_limits<int32_t>::max();
         std::string arg3 = "arg3";
@@ -37,21 +39,73 @@ TEST_CASE("Serializing primitive types", "[serialize][primitive]") {
 
         REQUIRE(serialized == res);
     }
-
-    SECTION("Service") {
-
-    }
 }
 
-TEST_CASE("Serializing nested types", "[serialize][nested]") {
-    SECTION("Message") {
+struct single_primitive : public message_base { 
+    int8_t arg1;
 
+    // statics
+    static constexpr const char* name = "single_primitive";
+    static constexpr auto fields = std::make_tuple(
+        MESSAGE_FIELD(single_primitive, arg1)
+    );
+};
+
+struct multiple_primitives: public message_base { 
+    int8_t arg1;
+    char arg2;
+    int64_t arg3;
+    std::string arg4;
+
+    // statics
+    static constexpr const char* name = "multiple_primitives";
+    static constexpr auto fields = std::make_tuple(
+        MESSAGE_FIELD(multiple_primitives, arg1),
+        MESSAGE_FIELD(multiple_primitives, arg2),
+        MESSAGE_FIELD(multiple_primitives, arg3),
+        MESSAGE_FIELD(multiple_primitives, arg4)
+    );
+};
+
+TEST_CASE("serializing structs", "[serialize][struct]") {
+    SECTION("single primitive") {
+        single_primitive sp;
+        sp.arg1 = 5;
+        std::vector<uint8_t> res = serializer::serialize(sp);
+        std::vector<uint8_t> serialized {
+            16, 0, 0, 0, 0, 0, 0, 0, 
+            's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
+            5, 
+        };
+        CAPTURE(res);
+
+        REQUIRE(serialized == res);
     }
 
-    SECTION("Service") {
+    SECTION("multiple primitives") {
+        multiple_primitives mp;
+        mp.arg1 = 22;
+        mp.arg2 = 'z';
+        mp.arg3 = std::numeric_limits<int64_t>::max();
+        mp.arg4 = "testing_string";
+        std::vector<uint8_t> res = serializer::serialize(mp);
+        std::vector<uint8_t> serialized {
+            19, 0, 0, 0, 0, 0, 0, 0, 
+            'm', 'u', 'l', 't', 'i', 'p', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's',
+            22,
+            'z',
+            255, 255, 255, 255, 255, 255, 255, 127, 
+            14, 0, 0, 0, 0, 0, 0, 0,
+            't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
+        };
+        CAPTURE(res);
 
+        REQUIRE(serialized == res);
     }
 
+    SECTION("nested message") {
+
+    }
 }
 
 
