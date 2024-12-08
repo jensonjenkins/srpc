@@ -8,6 +8,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 set (TEST_LIST
+    serializer_test.cpp
     parser_test.cpp
     lexer_test.cpp
     )

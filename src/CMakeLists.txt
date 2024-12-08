@@ -1,4 +1,5 @@
 set(TARGET_NAME srpc)
+set(CMAKE_CXX_STANDARD 20)
 
 add_library(${TARGET_NAME} INTERFACE)
 
