@@ -13,8 +13,9 @@ struct serializer {
     template <typename T>
     static void serialize_arg(std::vector<uint8_t>& buffer, const T& arg) noexcept {
         if constexpr (std::is_base_of_v<message_base, T>) {
-            std::vector<uint8_t> nested_buffer = serialize(T::name);
-            buffer.insert(buffer.end(), nested_buffer.begin(), nested_buffer.end()); // warn: copies the nested_buffer
+            std::vector<uint8_t> nested_buffer = serialize(arg);
+            buffer.insert(buffer.end(), nested_buffer.begin(), nested_buffer.end()); // WARN: copies the nested_buffer
+                                                                                     // TODO: probably avoid this later
         } else if constexpr(std::is_same_v<T, const char*>) {
             std::size_t length = std::strlen(arg);
             serialize_arg(buffer, length);
