@@ -22,5 +22,5 @@ struct trace {
     static size_t   indent_level;
 };
 
-} // namespace parser
+} // namespace srpc
 

@@ -121,4 +121,39 @@ TEST_CASE("Parse Message", "[parse][message]") {
     }
 }
 
+TEST_CASE("Parse Service", "[parse][service]") {
+    SECTION("Basic Service") {
+        contract::elements.clear();
+        std::string input = R"(
+            service MyService {
+                method SomeMethod(Request) returns (Response);
+                method AnotherMethod(AnotherRequest) returns (AnotherResponse);
+            }
+        )";
+
+        std::vector<method> my_service_test_case {
+            {"SomeMethod", "Request", "Response", nullptr},
+            {"AnotherMethod", "AnotherRequest", "AnotherResponse", nullptr},
+        };
+
+        lexer l(input);
+        parser p(l);
+        p.parse_contract();
+        check_parser_errors(p);
+
+        REQUIRE(contract::elements.size() == 1);
+
+        auto svc = try_cast_unique<service>(contract::elements["MyService"], "Error casting rpc element to message.");
+        CHECK(svc->name == "MyService");
+
+        for (int i = 0; i < my_service_test_case.size(); i++) {
+            INFO("my_service_test_case: "<<i);
+            auto method = svc->methods()[i].get();
+            CHECK(method->name == my_service_test_case[i].name);
+            CHECK(method->input_t == my_service_test_case[i].input_t);
+            CHECK(method->output_t == my_service_test_case[i].output_t);
+        }        
+    }
+}
+
 } // namespace srpc

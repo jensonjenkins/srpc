@@ -4,7 +4,6 @@
 #include "lexer.hpp"
 #include "token.hpp"
 #include "trace.hpp"
-#include <cstdint>
 #include <string>
 
 namespace srpc {
@@ -77,9 +76,53 @@ public:
         return msg; 
     }
 
-    service* parse_service() noexcept { return nullptr; }
+    [[nodiscard]] service* parse_service() noexcept { 
+        FUNCTION_TRACE;
 
-    field_descriptor* parse_message_field() noexcept {
+        service* svc = new service(_cur_token);
+        if (!expect_peek(token_t::IDENTIFIER)) { return nullptr; }
+
+        svc->name = _cur_token.literal;
+
+        if (!expect_peek(token_t::LBRACE)) { return nullptr; }
+        next_token();
+
+        while(_cur_token.type != token_t::RBRACE) {
+            method* mtd = parse_method();
+            if (mtd != nullptr) { svc->add_method(mtd); }
+        }
+        return svc; 
+    }
+
+    [[nodiscard]] method* parse_method() noexcept {
+        FUNCTION_TRACE;
+
+        method* mtd = new method;
+        if (!cur_token_is(token_t::METHOD)) { return nullptr; }
+        if (!expect_peek(token_t::IDENTIFIER)) { return nullptr; }
+
+        mtd->name = _cur_token.literal;
+
+        if (!expect_peek(token_t::LPAREN)) { return nullptr; }
+        if (!expect_peek(token_t::IDENTIFIER)) { return nullptr; }
+
+        mtd->input_t = _cur_token.literal;
+
+        if (!expect_peek(token_t::RPAREN)) { return nullptr; }
+        if (!expect_peek(token_t::RETURNS)) { return nullptr; }
+        if (!expect_peek(token_t::LPAREN)) { return nullptr; }
+        if (!expect_peek(token_t::IDENTIFIER)) { return nullptr; }
+
+        mtd->output_t= _cur_token.literal;
+
+        if (!expect_peek(token_t::RPAREN)) { return nullptr; }
+        if (!expect_peek(token_t::SEMICOLON)) { return nullptr; }
+        next_token();
+        
+        return mtd;
+    }
+
+    [[nodiscard]] field_descriptor* parse_message_field() noexcept {
         FUNCTION_TRACE;
 
         field_descriptor* fd = new field_descriptor;
@@ -116,7 +159,7 @@ public:
                 if (it->second) {
                     fd->type = _cur_token.literal;
                 } else {
-                    _errors.push_back("Undefined identifier in field type");
+                    _errors.push_back("Undefined identifier in field type.");
                     return nullptr;
                 }
                 break;

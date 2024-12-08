@@ -3,7 +3,6 @@
 #include "token.hpp"
 #include <cstddef>
 #include <vector>
-#include <typeindex>
 #include <unordered_map>
 #include <functional>
 
@@ -17,14 +16,29 @@ struct rpc_element {
     virtual const std::string token_literal() const noexcept = 0;
 };
 
+struct method {
+    std::string name;
+    std::string input_t;
+    std::string output_t;
+    std::function<void(const void*, void*)> implementation;
+    
+    method() = default;
+    method(std::string n, std::string in, std::string out, std::function<void(const void*, void*)> impl)
+        : name(std::move(n)), input_t(in), output_t(out), implementation(std::move(impl)) {}
+};
+
 class service : public rpc_element {
 private:
-    token                               _token;
-    std::vector<std::function<void()>>  _methods;
+    token                                   _token;
+    std::vector<std::unique_ptr<method>>    _methods;
 
 public:
     service(token t) : _token(t) {}
     ~service() = default;
+
+    void add_method(method* m) noexcept { _methods.push_back(std::unique_ptr<method>(m)); }
+
+    std::vector<std::unique_ptr<method>>& methods() noexcept { return _methods; }
 
     const std::string to_string() const noexcept override { return "service"; }
     const std::string token_literal() const noexcept override { return _token.literal; }
