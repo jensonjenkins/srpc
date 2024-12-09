@@ -1,6 +1,8 @@
 #pragma once
 
 #include <tuple>
+#include <functional>
+#include <unordered_map>
 
 namespace srpc {
 
@@ -11,5 +13,10 @@ struct message_base {
     static constexpr const char* name = nullptr;
     static constexpr auto fields = std::make_tuple();
 };
+
+using message_factory = std::function<std::unique_ptr<message_base>()>;
+
+// to be populated with user generated structs 
+static std::unordered_map<std::string, message_factory> message_registry {};
 
 } // namespace srpc

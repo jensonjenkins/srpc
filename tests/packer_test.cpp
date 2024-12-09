@@ -1,44 +1,12 @@
 #include <cstdint>
 #include <limits>
 #include <srpc/core.hpp>
-#include <srpc/serializer.hpp>
+#include <srpc/packer.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_message.hpp>
 
 namespace srpc {
-
-TEST_CASE("serializing primitive types", "[serialize][primitive]") {
-    SECTION("single primitive") {
-        int8_t arg1 = 5;
-        std::string name = "i8";
-
-        std::vector<uint8_t> res = serializer::serialize(name, arg1);
-        std::vector<uint8_t> serialized {2, 0, 0, 0, 0, 0, 0, 0, 'i', '8', 5}; // big endian
-
-        CAPTURE(name, arg1, res);         
-        REQUIRE(serialized == res);
-    }
-
-    SECTION("multiple primitives") {
-        int8_t arg1 = 5;
-        int32_t arg2 = std::numeric_limits<int32_t>::max();
-        std::string arg3 = "arg3";
-        std::string name = "i8_i32_str";
-
-        std::vector<uint8_t> res = serializer::serialize(name, arg1, arg2, arg3);
-        std::vector<uint8_t> serialized {
-            10, 0, 0, 0, 0, 0, 0, 0, 
-            'i', '8', '_', 'i', '3', '2', '_', 's', 't', 'r', 
-            5, 
-            255, 255, 255, 127, 
-            4, 0, 0, 0, 0, 0, 0, 0,
-            'a', 'r', 'g', '3'
-        };
-        CAPTURE(name, arg1, arg2, arg3, res); 
-        REQUIRE(serialized == res);
-    }
-}
 
 struct single_primitive : public message_base { 
     int8_t arg1;
@@ -85,14 +53,14 @@ TEST_CASE("serializing structs", "[serialize][struct]") {
         single_primitive sp;
         sp.arg1 = 5;
 
-        std::vector<uint8_t> res = serializer::serialize(sp);
-        std::vector<uint8_t> serialized {
+        std::vector<uint8_t> res = packer::pack(sp);
+        std::vector<uint8_t> packed {
             16, 0, 0, 0, 0, 0, 0, 0, 
             's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
             5, 
         };
         CAPTURE(res);
-        REQUIRE(serialized == res);
+        REQUIRE(packed == res);
     }
 
     SECTION("multiple primitives") {
@@ -102,8 +70,8 @@ TEST_CASE("serializing structs", "[serialize][struct]") {
         mp.arg3 = std::numeric_limits<int64_t>::max();
         mp.arg4 = "testing_string";
 
-        std::vector<uint8_t> res = serializer::serialize(mp);
-        std::vector<uint8_t> serialized {
+        std::vector<uint8_t> res = packer::pack(mp);
+        std::vector<uint8_t> packed {
             19, 0, 0, 0, 0, 0, 0, 0, 
             'm', 'u', 'l', 't', 'i', 'p', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's',
             22,
@@ -113,7 +81,7 @@ TEST_CASE("serializing structs", "[serialize][struct]") {
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
         CAPTURE(res);
-        REQUIRE(serialized == res);
+        REQUIRE(packed == res);
     }
 
     SECTION("nested message") {
@@ -131,8 +99,8 @@ TEST_CASE("serializing structs", "[serialize][struct]") {
         nm.arg2 = sp;
         nm.arg3 = mp;
 
-        std::vector<uint8_t> res = serializer::serialize(nm);
-        std::vector<uint8_t> serialized {
+        std::vector<uint8_t> res = packer::pack(nm);
+        std::vector<uint8_t> packed {
             14, 0, 0, 0, 0, 0, 0, 0, 
             'n', 'e', 's', 't', 'e', 'd', '_', 'm', 'e', 's', 's', 'a', 'g', 'e',
             255, 255, 255, 255, 255, 255, 255, 127, 
@@ -148,9 +116,8 @@ TEST_CASE("serializing structs", "[serialize][struct]") {
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
         CAPTURE(res);
-        REQUIRE(serialized == res);
+        REQUIRE(packed == res);
     }
 }
-
 
 } // namespace srpc
