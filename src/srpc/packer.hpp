@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <vector>
 #include <string>
+#include <iostream>
 
 namespace srpc {
 
@@ -49,7 +50,7 @@ struct packer {
         pack_arg(buffer, T::name);
         std::apply(
             [&buffer, &arg] (const auto&... field) {
-                (pack_arg(buffer, arg.*(field.second)), ...);
+                (pack_arg(buffer, arg.*(std::get<1>(field))), ...); // get and pack message field 
             },
             T::fields
         );
@@ -57,8 +58,7 @@ struct packer {
         return buffer;
     }
     
-    template <typename T>
-    [[nodiscard]] static T unpack(const std::vector<uint8_t>& packed) noexcept {
+    [[nodiscard]] static std::unique_ptr<message_base> unpack(const std::vector<uint8_t>& packed) noexcept {
         size_t offset = 0;
         int64_t header_length = 0;
         std::memcpy(&header_length, packed.data() + offset, sizeof(int64_t));
@@ -66,11 +66,15 @@ struct packer {
         
         std::string message_name(reinterpret_cast<const char*>(packed.data() + offset), header_length);
         offset += header_length;
-        
+
         auto it = message_registry.find(message_name);
         if (it != message_registry.end()) {
-            std::unique_ptr<message_base> instance = it->second();
+            std::unique_ptr<message_base> instance_ptr = it->second();
+            instance_ptr->unpack(packed, offset);
+            return instance_ptr;
         }
+
+        return nullptr;
     }
 };
 

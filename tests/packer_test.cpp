@@ -11,11 +11,16 @@ namespace srpc {
 struct single_primitive : public message_base { 
     int8_t arg1;
 
-    // statics
+    // overrides 
     static constexpr const char* name = "single_primitive";
     static constexpr auto fields = std::make_tuple(
-        MESSAGE_FIELD(single_primitive, arg1)
+        MESSAGE_FIELD(single_primitive, arg1, 1)
     );
+
+    constexpr virtual bool operator==(const single_primitive& other) const noexcept { return arg1 == other.arg1; }
+    void unpack(const std::vector<uint8_t>& packed, size_t offset) override {
+        std::memcpy(&arg1, packed.data() + offset, sizeof(int8_t)); 
+    }
 };
 
 struct multiple_primitives: public message_base { 
@@ -24,14 +29,15 @@ struct multiple_primitives: public message_base {
     int64_t arg3;
     std::string arg4;
 
-    // statics
+    // overrides 
     static constexpr const char* name = "multiple_primitives";
     static constexpr auto fields = std::make_tuple(
-        MESSAGE_FIELD(multiple_primitives, arg1),
-        MESSAGE_FIELD(multiple_primitives, arg2),
-        MESSAGE_FIELD(multiple_primitives, arg3),
-        MESSAGE_FIELD(multiple_primitives, arg4)
+        MESSAGE_FIELD(multiple_primitives, arg1, 1),
+        MESSAGE_FIELD(multiple_primitives, arg2, 1),
+        MESSAGE_FIELD(multiple_primitives, arg3, 1),
+        MESSAGE_FIELD(multiple_primitives, arg4, 1)
     );
+    void unpack(const std::vector<uint8_t>& packed, size_t offset) override {}
 };
 
 struct nested_message : public message_base {
@@ -39,16 +45,17 @@ struct nested_message : public message_base {
     single_primitive arg2;
     multiple_primitives arg3;
 
-    // statics
+    // overrides
     static constexpr const char* name = "nested_message";
     static constexpr auto fields = std::make_tuple(
-        MESSAGE_FIELD(nested_message, arg1),
-        MESSAGE_FIELD(nested_message, arg2),
-        MESSAGE_FIELD(nested_message, arg3)
+        MESSAGE_FIELD(nested_message, arg1, 1),
+        MESSAGE_FIELD(nested_message, arg2, 0),
+        MESSAGE_FIELD(nested_message, arg3, 0)
     );
+    void unpack(const std::vector<uint8_t>& packed, size_t offset) override {}
 };
 
-TEST_CASE("serializing structs", "[serialize][struct]") {
+TEST_CASE("packing structs", "[pack][struct]") {
     SECTION("single primitive") {
         single_primitive sp;
         sp.arg1 = 5;
@@ -118,6 +125,26 @@ TEST_CASE("serializing structs", "[serialize][struct]") {
         CAPTURE(res);
         REQUIRE(packed == res);
     }
+}
+
+TEST_CASE("unpacking structs", "[unpack][struct]") {
+    message_registry["single_primitive"] = []() -> std::unique_ptr<message_base> { return std::make_unique<single_primitive>(); };
+    message_registry["multiple_primitives"] = []() -> std::unique_ptr<message_base> { return std::make_unique<multiple_primitives>(); };
+    message_registry["nested_message"] = []() -> std::unique_ptr<message_base> { return std::make_unique<nested_message>(); };
+
+    SECTION("single primitive") {
+        single_primitive sp;
+        sp.arg1 = 5;
+
+        std::vector<uint8_t> packed {
+            16, 0, 0, 0, 0, 0, 0, 0, 
+            's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
+            5, 
+        };
+        message_base *res = packer::unpack(packed).release();
+        single_primitive sp_unpacked = *(dynamic_cast<single_primitive*>(res));
+        REQUIRE(sp_unpacked == sp); 
+    } 
 }
 
 } // namespace srpc
