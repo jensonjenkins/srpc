@@ -157,8 +157,8 @@ public:
         case token_t::IDENTIFIER:
             {
                 fd->is_primitive = 0;
-                auto it = contract::elements.find(_cur_token.literal);
-                if (it->second) {
+                auto it = contract::element_index_map.find(_cur_token.literal);
+                if (it != contract::element_index_map.end()) {
                     fd->type = _cur_token.literal;
                 } else {
                     _errors.push_back("Undefined identifier in field type.");

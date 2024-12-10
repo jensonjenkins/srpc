@@ -20,6 +20,7 @@ std::string remove_whitespace(const std::string& str) {
 TEST_CASE("generate header file", "[generate][message]") {
     SECTION("primitive message") {
         contract::elements.clear();
+        contract::element_index_map.clear();
         std::string input = R"(
             message Request {
                 string arg1 = 1;
@@ -31,7 +32,7 @@ TEST_CASE("generate header file", "[generate][message]") {
         p.parse_contract();
         REQUIRE(p.errors().size() == 0);
 
-        auto msg = dynamic_pointer_cast<message>(contract::elements["Request"]);
+        auto msg = dynamic_pointer_cast<message>(contract::elements[contract::element_index_map["Request"]]);
         std::string res = remove_whitespace(generator::handle_message(msg));
         std::string expected = remove_whitespace(R"(
         struct Request : public srpc::message_base {
@@ -56,7 +57,7 @@ TEST_CASE("generate header file", "[generate][message]") {
         };
         )");
 
-        CHECK(res == expected);
+        REQUIRE(res == expected);
     }
 
     SECTION("nested message") {
@@ -77,7 +78,7 @@ TEST_CASE("generate header file", "[generate][message]") {
         p.parse_contract();
         REQUIRE(p.errors().size() == 0);
 
-        auto msg = dynamic_pointer_cast<message>(contract::elements["request"]);
+        auto msg = dynamic_pointer_cast<message>(contract::elements[contract::element_index_map["request"]]);
         std::string res = remove_whitespace(generator::handle_message(msg));
 
         std::string expected = remove_whitespace(R"(
@@ -102,12 +103,40 @@ TEST_CASE("generate header file", "[generate][message]") {
                 std::memcpy(&arg2, packed.data() + offset, sizeof(int32_t));
                 offset += sizeof(int32_t);
                 nested_request arg3_;
-                arg3_.unpack(packed, offest);
+                arg3_.unpack(packed, offset);
                 arg3 = std::move(arg3_);
             }
         };)");
 
-        REQUIRE(expected == res); 
+        REQUIRE(res == expected); 
+    }
+
+    SECTION("generated") {
+        contract::elements.clear();
+        contract::element_index_map.clear();
+        std::string input = R"(
+            message primitive_request {
+                string str = 1;
+                int64 i64 = 2;
+            }
+            message nested_request {
+                bool random_flag = 1;
+                int64 i64 = 2;
+            }
+            message request {
+                string arg1 = 1;
+                int32 arg2 = 2;
+                nested_request arg3 = 3;
+            }
+        )";
+        lexer l(input);
+        parser p(l); 
+        p.parse_contract();
+        REQUIRE(p.errors().size() == 0);
+        
+        std::string path = "tests/srpc_stub/msg_srpc.hpp";
+        generator::init_file(path);
+        generator::handle_contract(path);
     }
 }
 

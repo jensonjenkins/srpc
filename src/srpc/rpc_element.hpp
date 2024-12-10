@@ -76,10 +76,16 @@ public:
 struct contract {
     contract() {}
     ~contract() = default;
-    static void add_element(rpc_element* e) { elements.emplace(e->name, std::shared_ptr<rpc_element>(e)); }
+    static void add_element(rpc_element* e) { 
+        elements.push_back(std::shared_ptr<rpc_element>(e));
+        element_index_map.emplace(e->name, elements.size() - 1);
+    }
     
-    static std::unordered_map<std::string, std::shared_ptr<rpc_element>> elements;
+    // The following design choice (having separate maps and array) was done to enable
+    // string to rpc_element lookups, and to enable struct ordering during code generation
+    // to avoid "identifier not defined" issues.
+    static std::vector<std::shared_ptr<rpc_element>> elements;
+    static std::unordered_map<std::string, std::size_t> element_index_map;
 };
-
 
 } // namespace srpc

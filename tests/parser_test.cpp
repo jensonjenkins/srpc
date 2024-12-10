@@ -10,7 +10,8 @@ namespace srpc {
 // define statics
 size_t trace::indent_level = 0;
 bool trace::enable_trace = 0;
-std::unordered_map<std::string, std::shared_ptr<rpc_element>> contract::elements;
+std::vector<std::shared_ptr<rpc_element>> contract::elements;
+std::unordered_map<std::string, size_t> contract::element_index_map;
 
 template <typename To, typename From>
 std::unique_ptr<To> try_cast_unique(std::unique_ptr<From>& from, std::string err_msg) {
@@ -42,6 +43,7 @@ void check_parser_errors(parser& p) {
 TEST_CASE("Parse Message", "[parse][message]") {
     SECTION("Basic Message") {
         contract::elements.clear();
+        contract::element_index_map.clear();
         std::string input = R"(
             message Request {
                 string arg1 = 1;
@@ -61,7 +63,8 @@ TEST_CASE("Parse Message", "[parse][message]") {
         check_parser_errors(p);
 
         REQUIRE(contract::elements.size() == 1);
-        auto msg = try_cast_shared<message>(contract::elements["Request"], "Error casting rpc element to message.");
+        auto msg = try_cast_shared<message>(contract::elements[contract::element_index_map["Request"]], 
+                "Error casting rpc element to message.");
 
         CHECK(msg->name == "Request");
         for (int i = 0; i < test_case.size(); i++) {
@@ -75,6 +78,7 @@ TEST_CASE("Parse Message", "[parse][message]") {
 
     SECTION("Nested Message") {
         contract::elements.clear();
+        contract::element_index_map.clear();
         std::string input = R"(
             message Engine {
                 int8 pistons = 1;
@@ -105,7 +109,8 @@ TEST_CASE("Parse Message", "[parse][message]") {
 
         REQUIRE(contract::elements.size() == 2);
 
-        auto engine_msg = try_cast_shared<message>(contract::elements["Engine"], "Error casting rpc element to message.");
+        auto engine_msg = try_cast_shared<message>(contract::elements[contract::element_index_map["Engine"]], 
+                "Error casting rpc element to message.");
         CHECK(engine_msg->name == "Engine");
         for (int i = 0; i < engine_field_test_case.size(); i++) {
             INFO("engine_field_test_case: "<<i);
@@ -116,7 +121,8 @@ TEST_CASE("Parse Message", "[parse][message]") {
             CHECK(field->type == engine_field_test_case[i].type);
         }
 
-        auto car_msg = try_cast_shared<message>(contract::elements["Car"], "Error casting rpc element to message.");
+        auto car_msg = try_cast_shared<message>(contract::elements[contract::element_index_map["Car"]], 
+                "Error casting rpc element to message.");
         CHECK(car_msg->name == "Car");
         for (int i = 0; i < car_field_test_case.size(); i++) {
             INFO("car_field_test_case: "<<i);
@@ -132,6 +138,7 @@ TEST_CASE("Parse Message", "[parse][message]") {
 TEST_CASE("Parse Service", "[parse][service]") {
     SECTION("Basic Service") {
         contract::elements.clear();
+        contract::element_index_map.clear();
         std::string input = R"(
             service MyService {
                 method SomeMethod(Request) returns (Response);
@@ -151,7 +158,8 @@ TEST_CASE("Parse Service", "[parse][service]") {
 
         REQUIRE(contract::elements.size() == 1);
 
-        auto svc = try_cast_shared<service>(contract::elements["MyService"], "Error casting rpc element to message.");
+        auto svc = try_cast_shared<service>(contract::elements[contract::element_index_map["MyService"]], 
+                "Error casting rpc element to message.");
         CHECK(svc->name == "MyService");
 
         for (int i = 0; i < my_service_test_case.size(); i++) {
