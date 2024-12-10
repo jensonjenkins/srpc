@@ -10,7 +10,7 @@ namespace srpc {
 // define statics
 size_t trace::indent_level = 0;
 bool trace::enable_trace = 0;
-std::unordered_map<std::string, std::unique_ptr<rpc_element>> contract::elements;
+std::unordered_map<std::string, std::shared_ptr<rpc_element>> contract::elements;
 
 template <typename To, typename From>
 std::unique_ptr<To> try_cast_unique(std::unique_ptr<From>& from, std::string err_msg) {
@@ -20,6 +20,15 @@ std::unique_ptr<To> try_cast_unique(std::unique_ptr<From>& from, std::string err
     }
     INFO("cast fail: "<<err_msg);
     return nullptr;
+}
+
+template <typename To, typename From>
+std::shared_ptr<To> try_cast_shared(std::shared_ptr<From>& from, std::string err_msg) {
+    auto casted = std::dynamic_pointer_cast<To>(from);
+    if (!casted) {
+        INFO("cast fail: " << err_msg);
+    }
+    return casted;
 }
 
 void check_parser_errors(parser& p) {
@@ -41,9 +50,9 @@ TEST_CASE("Parse Message", "[parse][message]") {
             }
         )";
         std::vector<field_descriptor> test_case {
-            {0, 1, "arg1", "str"}, 
-            {1, 2, "arg2", "i32"}, 
-            {0, 3, "arg3", "bool"}, 
+            {0, 1, 1, "arg1", "std::string"}, 
+            {1, 1, 2, "arg2", "int32_t"}, 
+            {0, 1, 3, "arg3", "bool"}, 
         };
 
         lexer l(input);
@@ -52,7 +61,7 @@ TEST_CASE("Parse Message", "[parse][message]") {
         check_parser_errors(p);
 
         REQUIRE(contract::elements.size() == 1);
-        auto msg = try_cast_unique<message>(contract::elements["Request"], "Error casting rpc element to message.");
+        auto msg = try_cast_shared<message>(contract::elements["Request"], "Error casting rpc element to message.");
 
         CHECK(msg->name == "Request");
         for (int i = 0; i < test_case.size(); i++) {
@@ -62,7 +71,6 @@ TEST_CASE("Parse Message", "[parse][message]") {
             CHECK(field->name == test_case[i].name);
             CHECK(field->type == test_case[i].type);
         }
-
     }
 
     SECTION("Nested Message") {
@@ -80,14 +88,14 @@ TEST_CASE("Parse Message", "[parse][message]") {
             }
         )";
         std::vector<field_descriptor> engine_field_test_case {
-            {0, 1, "pistons", "i8"}, 
-            {0, 2, "horsepower", "i32"}, 
-            {0, 3, "model", "char"}, 
+            {0, 1, 1, "pistons", "int8_t"}, 
+            {0, 1, 2, "horsepower", "int32_t"}, 
+            {0, 1, 3, "model", "char"}, 
         };
 
         std::vector<field_descriptor> car_field_test_case {
-            {0, 1, "engine", "Engine"},
-            {1, 2, "color", "str"},
+            {0, 0, 1, "engine", "Engine"},
+            {1, 1, 2, "color", "std::string"},
         };
         
         lexer l(input);
@@ -97,7 +105,7 @@ TEST_CASE("Parse Message", "[parse][message]") {
 
         REQUIRE(contract::elements.size() == 2);
 
-        auto engine_msg = try_cast_unique<message>(contract::elements["Engine"], "Error casting rpc element to message.");
+        auto engine_msg = try_cast_shared<message>(contract::elements["Engine"], "Error casting rpc element to message.");
         CHECK(engine_msg->name == "Engine");
         for (int i = 0; i < engine_field_test_case.size(); i++) {
             INFO("engine_field_test_case: "<<i);
@@ -108,7 +116,7 @@ TEST_CASE("Parse Message", "[parse][message]") {
             CHECK(field->type == engine_field_test_case[i].type);
         }
 
-        auto car_msg = try_cast_unique<message>(contract::elements["Car"], "Error casting rpc element to message.");
+        auto car_msg = try_cast_shared<message>(contract::elements["Car"], "Error casting rpc element to message.");
         CHECK(car_msg->name == "Car");
         for (int i = 0; i < car_field_test_case.size(); i++) {
             INFO("car_field_test_case: "<<i);
@@ -143,7 +151,7 @@ TEST_CASE("Parse Service", "[parse][service]") {
 
         REQUIRE(contract::elements.size() == 1);
 
-        auto svc = try_cast_unique<service>(contract::elements["MyService"], "Error casting rpc element to message.");
+        auto svc = try_cast_shared<service>(contract::elements["MyService"], "Error casting rpc element to message.");
         CHECK(svc->name == "MyService");
 
         for (int i = 0; i < my_service_test_case.size(); i++) {

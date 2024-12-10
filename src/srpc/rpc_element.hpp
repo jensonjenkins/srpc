@@ -46,13 +46,14 @@ public:
 
 struct field_descriptor {
     bool        is_optional;
+    bool        is_primitive;
     int         field_number;
     std::string name;
     std::string type;
 
     field_descriptor() {}
-    field_descriptor(bool opt, int fn, std::string name, std::string t) 
-        : is_optional(opt), field_number(fn), name(name), type(t) {};
+    field_descriptor(bool opt, bool ip, int fn, std::string name, std::string t) 
+        : is_optional(opt), is_primitive(ip), field_number(fn), name(name), type(t) {};
 };
 
 class message : public rpc_element {
@@ -75,9 +76,9 @@ public:
 struct contract {
     contract() {}
     ~contract() = default;
-    static void add_element(rpc_element* e) { elements.emplace(e->name, std::unique_ptr<rpc_element>(e)); }
+    static void add_element(rpc_element* e) { elements.emplace(e->name, std::shared_ptr<rpc_element>(e)); }
     
-    static std::unordered_map<std::string, std::unique_ptr<rpc_element>> elements;
+    static std::unordered_map<std::string, std::shared_ptr<rpc_element>> elements;
 };
 
 

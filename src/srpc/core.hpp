@@ -6,7 +6,7 @@
 
 namespace srpc {
 
-#define MESSAGE_FIELD(type, field_name, is_primitive) std::make_tuple(#field_name, &type::field_name, is_primitive)
+#define MESSAGE_FIELD(type, field_name) std::make_tuple(#field_name, &type::field_name)
 
 // to be inherited by generated messages
 struct message_base {

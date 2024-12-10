@@ -131,30 +131,32 @@ public:
             next_token();
         }
 
+        fd->is_primitive = 1;
         switch (_cur_token.type) {
         case token_t::BOOL_T:
             fd->type = "bool";
             break;
         case token_t::INT8_T:
-            fd->type = "i8";
+            fd->type = "int8_t";
             break;
         case token_t::INT16_T:
-            fd->type = "i16";
+            fd->type = "int16_t";
             break;
         case token_t::INT32_T:
-            fd->type = "i32";
+            fd->type = "int32_t";
             break;
         case token_t::INT64_T:
-            fd->type = "i64";
+            fd->type = "int64_t";
             break;
         case token_t::STRING_T:
-            fd->type = "str";
+            fd->type = "std::string";
             break;
         case token_t::CHAR_T:
             fd->type = "char";
             break;
         case token_t::IDENTIFIER:
             {
+                fd->is_primitive = 0;
                 auto it = contract::elements.find(_cur_token.literal);
                 if (it->second) {
                     fd->type = _cur_token.literal;
