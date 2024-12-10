@@ -13,7 +13,7 @@ struct packer {
     template <typename T>
     constexpr static void pack_arg(std::vector<uint8_t>& buffer, const T& arg) noexcept {
         if constexpr (std::is_base_of_v<message_base, T>) {
-            std::vector<uint8_t> nested_buffer = pack(arg);
+            std::vector<uint8_t> nested_buffer = pack_nested(arg);
             buffer.insert(buffer.end(), nested_buffer.begin(), nested_buffer.end()); // WARN: copies the nested_buffer
                                                                                      // TODO: probably avoid this later
         } else {
@@ -42,11 +42,29 @@ struct packer {
         }
     }
 
+    /**
+     * @brief To pack bytes with the message's name as the header. Used to pack the outermost struct.
+     */
     template <typename T> 
     [[nodiscard]] constexpr static std::vector<uint8_t> pack(const T& arg) {
-        std::vector<uint8_t> buffer;
-        
+        std::vector<uint8_t> buffer; 
         pack_arg(buffer, T::name);
+        std::apply(
+            [&buffer, &arg] (const auto&... field) {
+                (pack_arg(buffer, arg.*(std::get<1>(field))), ...); // get and pack message field 
+            },
+            T::fields
+        );
+
+        return buffer;
+    }
+    
+    /**
+     * @brief To pack bytes without the message's name. Used to pack nested structs.
+     */
+    template <typename T> 
+    [[nodiscard]] constexpr static std::vector<uint8_t> pack_nested(const T& arg) {
+        std::vector<uint8_t> buffer; 
         std::apply(
             [&buffer, &arg] (const auto&... field) {
                 (pack_arg(buffer, arg.*(std::get<1>(field))), ...); // get and pack message field 

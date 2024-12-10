@@ -11,7 +11,7 @@ namespace srpc {
 // to be inherited by generated messages
 struct message_base {
     virtual ~message_base() = default;
-    virtual void unpack(const std::vector<uint8_t>& packed, size_t offset) = 0;
+    virtual void unpack(const std::vector<uint8_t>& packed, size_t& offset) = 0;
 
     static constexpr const char* name = nullptr;
     static constexpr auto fields = std::make_tuple();

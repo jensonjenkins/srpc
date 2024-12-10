@@ -18,7 +18,7 @@ struct single_primitive : public message_base {
     );
 
     constexpr bool operator==(const single_primitive& other) const noexcept { return arg1 == other.arg1; }
-    void unpack(const std::vector<uint8_t>& packed, size_t offset) override {
+    void unpack(const std::vector<uint8_t>& packed, size_t& offset) override {
         std::memcpy(&arg1, packed.data() + offset, sizeof(int8_t)); 
         offset += sizeof(int8_t);
     }
@@ -46,7 +46,7 @@ struct multiple_primitives : public message_base {
             arg4 == other.arg4; 
     }
 
-    void unpack(const std::vector<uint8_t>& packed, size_t offset) override {
+    void unpack(const std::vector<uint8_t>& packed, size_t& offset) override {
         int64_t header_length = 0;
         std::memcpy(&arg1, packed.data() + offset, sizeof(int8_t)); 
         offset += sizeof(int8_t);
@@ -75,7 +75,26 @@ struct nested_message : public message_base {
         MESSAGE_FIELD(nested_message, arg2),
         MESSAGE_FIELD(nested_message, arg3)
     );
-    void unpack(const std::vector<uint8_t>& packed, size_t offset) override {}
+
+    constexpr bool operator==(const nested_message& other) const noexcept { 
+        return arg1 == other.arg1 &&
+            arg2 == other.arg2 &&
+            arg3 == other.arg3;
+    }
+
+    void unpack(const std::vector<uint8_t>& packed, size_t& offset) override {
+        int64_t header_length = 0;
+        std::memcpy(&arg1, packed.data() + offset, sizeof(int64_t)); 
+        offset += sizeof(int64_t);
+        
+        single_primitive arg2_;
+        arg2_.unpack(packed, offset);
+        arg2 = std::move(arg2_);
+
+        multiple_primitives arg3_;
+        arg3_.unpack(packed, offset);
+        arg3 = std::move(arg3_);
+    }
 };
 
 TEST_CASE("packing structs", "[pack][struct]") {
@@ -134,11 +153,7 @@ TEST_CASE("packing structs", "[pack][struct]") {
             14, 0, 0, 0, 0, 0, 0, 0, 
             'n', 'e', 's', 't', 'e', 'd', '_', 'm', 'e', 's', 's', 'a', 'g', 'e',
             255, 255, 255, 255, 255, 255, 255, 127, 
-            16, 0, 0, 0, 0, 0, 0, 0, 
-            's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
             5, 
-            19, 0, 0, 0, 0, 0, 0, 0, 
-            'm', 'u', 'l', 't', 'i', 'p', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's',
             22,
             'z',
             255, 255, 255, 255, 255, 255, 255, 127, 
@@ -194,6 +209,38 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
         message_base *res = packer::unpack(packed).release();
         multiple_primitives mp_unpacked = *(dynamic_cast<multiple_primitives*>(res));
         REQUIRE(mp_unpacked == mp); 
+    }
+
+    SECTION("nested messages") {
+        single_primitive sp;
+        sp.arg1 = 5;
+
+        multiple_primitives mp;
+        mp.arg1 = 22;
+        mp.arg2 = 'z';
+        mp.arg3 = std::numeric_limits<int64_t>::max();
+        mp.arg4 = "testing_string";
+
+        nested_message nm;
+        nm.arg1 = std::numeric_limits<int64_t>::max();
+        nm.arg2 = sp;
+        nm.arg3 = mp;
+
+        std::vector<uint8_t> packed {
+            14, 0, 0, 0, 0, 0, 0, 0, 
+            'n', 'e', 's', 't', 'e', 'd', '_', 'm', 'e', 's', 's', 'a', 'g', 'e',
+            255, 255, 255, 255, 255, 255, 255, 127, 
+            5, 
+            22,
+            'z',
+            255, 255, 255, 255, 255, 255, 255, 127, 
+            14, 0, 0, 0, 0, 0, 0, 0,
+            't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
+        };
+
+        message_base *res = packer::unpack(packed).release();
+        nested_message nm_unpacked = *(dynamic_cast<nested_message*>(res));
+        REQUIRE(nm_unpacked == nm); 
     }
 }
 
