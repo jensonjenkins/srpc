@@ -17,7 +17,7 @@ std::string remove_whitespace(const std::string& str) {
     return normalized;
 }
 
-TEST_CASE("generate header file", "[generate][message]") {
+TEST_CASE("generate header file message", "[generate][message]") {
     SECTION("primitive message") {
         contract::elements.clear();
         contract::element_index_map.clear();
@@ -110,31 +110,67 @@ TEST_CASE("generate header file", "[generate][message]") {
 
         REQUIRE(res == expected); 
     }
+}
 
-    SECTION("generated") {
+TEST_CASE("generate header file service", "[generate][service]") {
+    SECTION("single method") {
         contract::elements.clear();
         contract::element_index_map.clear();
         std::string input = R"(
-            message primitive_request {
-                string str = 1;
-                int64 i64 = 2;
-            }
-            message nested_request {
-                bool random_flag = 1;
-                int64 i64 = 2;
-            }
-            message request {
-                string arg1 = 1;
-                int32 arg2 = 2;
-                nested_request arg3 = 3;
+            service my_service {
+                method some_method(request) returns (response);
             }
         )";
         lexer l(input);
         parser p(l); 
         p.parse_contract();
         REQUIRE(p.errors().size() == 0);
+
+        std::string expected = remove_whitespace(R"(
+        struct my_service_stub {
+            response some_method(const request& req) {
+                std::vector<uint8_t> packed = srpc::packer::pack(req);
+            }
+        };
+        struct my_service_servicer {
+            virtual response some_method(const request& req) = 0;
+        };
+        )");
+        auto svc = dynamic_pointer_cast<service>(contract::elements[contract::element_index_map["my_service"]]);
+        std::string res = remove_whitespace(generator::handle_service(svc));
+
+        REQUIRE(expected == res); 
+    }
+}
+
+TEST_CASE("write to file", "[generate][message][service][file]") {
+    SECTION("generated message") {
+        contract::elements.clear();
+        contract::element_index_map.clear();
+        std::string input = R"(
+        message primitive_request {
+            string str = 1;
+            int64 i64 = 2;
+        }
+        message nested_request {
+            bool random_flag = 1;
+            int64 i64 = 2;
+        }
+        message request {
+            string arg1 = 1;
+            int32 arg2 = 2;
+            nested_request arg3 = 3;
+        }
+        service my_service {
+            method some_method(request) returns (primitive_request);
+        }
+        )";
+        lexer l(input);
+        parser p(l); 
+        p.parse_contract();
+        REQUIRE(p.errors().size() == 0);
         
-        std::string path = "tests/srpc_stub/msg_srpc.hpp";
+        std::string path = "tests/stub/msg_srpc.hpp";
         generator::init_file(path);
         generator::handle_contract(path);
     }

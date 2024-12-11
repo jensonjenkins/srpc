@@ -44,6 +44,9 @@ struct packer {
 
     /**
      * @brief To pack bytes with the message's name as the header. Used to pack the outermost struct.
+     * @tparam T
+     * @param arg
+     * @return
      */
     template <typename T> 
     [[nodiscard]] constexpr static std::vector<uint8_t> pack(const T& arg) {
@@ -61,6 +64,13 @@ struct packer {
     
     /**
      * @brief To pack bytes without the message's name. Used to pack nested structs.
+     * @tparam T
+     * @param arg
+     * @return
+     *
+     * unimportant sidenote: The reason for this very similar method is to avoid a bool flag in pack()'s argument
+     * to not include the pack_arg(buffer, T::name) line. I personally think the method signature becomes ugly 
+     * with a bool flag to accomplish a trivial task.
      */
     template <typename T> 
     [[nodiscard]] constexpr static std::vector<uint8_t> pack_nested(const T& arg) {

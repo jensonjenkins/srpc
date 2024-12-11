@@ -33,5 +33,6 @@
 
 build/
 .cache/
+stub/
 todo.txt
 
