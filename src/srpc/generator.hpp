@@ -35,7 +35,7 @@ struct generator {
         return stub_msg_gen + servicer_msg_gen;
     }
 
-    static std::string handle_message(std::shared_ptr<message> msg) noexcept {
+    [[nodiscard]] static std::string handle_message(std::shared_ptr<message> msg) noexcept {
         std::string msg_gen = "struct " + msg->name + " : public srpc::message_base {\n";
         for (const auto& fd : msg->fields()) {
             msg_gen += "\t" + fd->type + " " + fd->name + ";\n";
