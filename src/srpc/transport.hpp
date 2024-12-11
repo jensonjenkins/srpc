@@ -2,16 +2,18 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <string>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <string>
+#include <vector>
 
 namespace srpc {
 
 #define N_CONNECTIONS 1 // TODO: support more than 1 connection
+#define SOCKET_SEND_FLAGS 0
 
 struct transport {
 
@@ -84,6 +86,38 @@ struct transport {
         }
         
         return client_fd;
+    }
+
+    static void send_data(int32_t socket_fd, const std::vector<uint8_t>& data) {
+        uint32_t size = static_cast<uint32_t>(data.size());
+        uint32_t size_network = htonl(size);
+        if (send(socket_fd, &size_network, sizeof(size_network), SOCKET_SEND_FLAGS) != sizeof(size_network)) {
+            fprintf(stderr, "srpc::transport::send_data(): failed to send data size.");
+            return;
+        }
+
+        if (send(socket_fd, data.data(), size, SOCKET_SEND_FLAGS) != static_cast<ssize_t>(size)) {
+            fprintf(stderr, "srpc::transport::send_data(): failed to send data payload.");
+            return;
+        }
+    }
+
+    [[nodiscard]] static std::vector<uint8_t> recv_data(int socket_fd) {
+        uint32_t size_network;
+        if (recv(socket_fd, &size_network, sizeof(size_network), MSG_WAITALL) != sizeof(size_network)) {
+            fprintf(stderr, "srpc::transport::recv_data(): failed to receive data size.");
+            return {};
+        }
+
+        uint32_t size = ntohl(size_network);
+
+        std::vector<uint8_t> data(size);
+        if (recv(socket_fd, data.data(), size, MSG_WAITALL) != static_cast<ssize_t>(size)) {
+            fprintf(stderr, "srpc::transport::recv_data(): failed to receive data payload.");
+            return {};
+        }
+
+        return data;
     }
 };
 

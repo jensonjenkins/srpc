@@ -8,6 +8,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 set (TEST_LIST
+    transport_test.cpp
     generator_test.cpp
     packer_test.cpp
     parser_test.cpp
