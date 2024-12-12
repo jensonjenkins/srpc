@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <vector>
 #include <unordered_map>
-#include <functional>
 
 namespace srpc {
 
@@ -14,34 +13,6 @@ struct rpc_element {
     virtual ~rpc_element() noexcept = default;
     virtual const std::string to_string() const noexcept = 0;
     virtual const std::string token_literal() const noexcept = 0;
-};
-
-struct method {
-    std::string name;
-    std::string input_t;
-    std::string output_t;
-    std::function<void(const void*, void*)> implementation;
-    
-    method() = default;
-    method(std::string n, std::string in, std::string out, std::function<void(const void*, void*)> impl)
-        : name(std::move(n)), input_t(in), output_t(out), implementation(std::move(impl)) {}
-};
-
-class service : public rpc_element {
-private:
-    token                                   _token;
-    std::vector<std::unique_ptr<method>>    _methods;
-
-public:
-    service(token t) : _token(t) {}
-    ~service() = default;
-
-    void add_method(method* m) noexcept { _methods.push_back(std::unique_ptr<method>(m)); }
-
-    std::vector<std::unique_ptr<method>>& methods() noexcept { return _methods; }
-
-    const std::string to_string() const noexcept override { return "service"; }
-    const std::string token_literal() const noexcept override { return _token.literal; }
 };
 
 struct field_descriptor {
@@ -73,6 +44,43 @@ public:
     std::vector<std::unique_ptr<field_descriptor>>& fields() noexcept { return _fields; }
 };
 
+struct method {
+    std::string name;
+    std::string input_t;
+    std::string output_t;
+    
+    method() = default;
+    method(std::string n, std::string in, std::string out)
+        : name(std::move(n)), input_t(in), output_t(out) {}
+};
+
+class service : public rpc_element {
+private:
+    token                                   _token;
+    std::vector<std::string>                _msg_dependencies;
+    std::vector<std::unique_ptr<method>>    _methods;
+
+public:
+    service(token t) : _token(t) {}
+    ~service() = default;
+
+    void add_method(method* m) noexcept {
+        if (std::find(_msg_dependencies.begin(), _msg_dependencies.end(), m->input_t) == _msg_dependencies.end()) {
+            _msg_dependencies.push_back(m->input_t);
+        }
+        if (std::find(_msg_dependencies.begin(), _msg_dependencies.end(), m->output_t) == _msg_dependencies.end()) {
+            _msg_dependencies.push_back(m->output_t);
+        }
+        _methods.push_back(std::unique_ptr<method>(m)); 
+    }
+
+    std::vector<std::unique_ptr<method>>& methods() noexcept { return _methods; }
+    std::vector<std::string>& msg_dependencies() noexcept { return _msg_dependencies; }
+
+    const std::string to_string() const noexcept override { return "service"; }
+    const std::string token_literal() const noexcept override { return _token.literal; }
+};
+
 struct contract {
     contract() {}
     ~contract() = default;
@@ -85,7 +93,7 @@ struct contract {
     // string to rpc_element lookups, and to enable struct ordering during code generation
     // to avoid "identifier not defined" issues.
     static std::vector<std::shared_ptr<rpc_element>> elements;
-    static std::unordered_map<std::string, std::size_t> element_index_map;
+    static std::unordered_map<std::string, size_t> element_index_map;
 };
 
 } // namespace srpc

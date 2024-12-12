@@ -6,7 +6,7 @@
 
 namespace srpc {
 
-enum class token_t : std::size_t {
+enum class token_t : size_t {
     ILLEGAL     = 0,
     EOFT        = 1,
 
@@ -52,7 +52,7 @@ const std::unordered_map<std::string_view, token_t> keywords {
     {"bool", token_t::BOOL_T},
 }; 
 
-const std::array<std::string, static_cast<std::size_t>(token_t::COUNT)> inv_map {
+const std::array<std::string, static_cast<size_t>(token_t::COUNT)> inv_map {
     "ILLEGAL", "EOFT",
     "IDENTIFIER", "MESSAGE", "SERVICE", "OPTIONAL", "METHOD", "RETURNS"
     "LBRACE", "RBRACE", "LPAREN", "RPAREN", "ASSIGN", "SEMICOLON"

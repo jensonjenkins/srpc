@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rpc_element.hpp"
+#include "element.hpp"
 #include "lexer.hpp"
 #include "token.hpp"
 #include "trace.hpp"
@@ -8,7 +8,9 @@
 
 namespace srpc {
 
+#ifndef FUNCTION_TRACE
 #define FUNCTION_TRACE trace t(std::string(__FUNCTION__));
+#endif
 
 /**
  * Parse tokens into rpc_elements, and grouping them into contracts
@@ -52,7 +54,7 @@ public:
             return parse_service();
             break;
         default:
-            _errors.push_back("Unrecognized rpc_element token: " + inv_map[static_cast<std::size_t>(_cur_token.type)]);
+            _errors.push_back("Unrecognized rpc_element token: " + inv_map[static_cast<size_t>(_cur_token.type)]);
             return nullptr;
         }
     }
@@ -199,9 +201,9 @@ public:
     void peek_error(token_t token_type) noexcept {
         std::string error_msg;
         error_msg = "expected next token to be " 
-            + inv_map[static_cast<std::size_t>(token_type)]
+            + inv_map[static_cast<size_t>(token_type)]
             + ", got " 
-            + inv_map[static_cast<std::size_t>(_peek_token.type)]
+            + inv_map[static_cast<size_t>(_peek_token.type)]
             + " instead.";
         _errors.push_back(error_msg);
     }

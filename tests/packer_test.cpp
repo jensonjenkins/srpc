@@ -102,8 +102,10 @@ TEST_CASE("packing structs", "[pack][struct]") {
         single_primitive sp;
         sp.arg1 = 5;
 
-        std::vector<uint8_t> res = packer::pack(sp);
+        std::vector<uint8_t> res = packer::pack_request("test", sp);
         std::vector<uint8_t> packed {
+            4, 0, 0, 0, 0, 0, 0, 0, 
+            't', 'e', 's', 't',
             16, 0, 0, 0, 0, 0, 0, 0, 
             's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
             5, 
@@ -119,8 +121,10 @@ TEST_CASE("packing structs", "[pack][struct]") {
         mp.arg3 = std::numeric_limits<int64_t>::max();
         mp.arg4 = "testing_string";
 
-        std::vector<uint8_t> res = packer::pack(mp);
+        std::vector<uint8_t> res = packer::pack_request("test", mp);
         std::vector<uint8_t> packed {
+            4, 0, 0, 0, 0, 0, 0, 0, 
+            't', 'e', 's', 't',
             19, 0, 0, 0, 0, 0, 0, 0, 
             'm', 'u', 'l', 't', 'i', 'p', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's',
             22,
@@ -148,8 +152,10 @@ TEST_CASE("packing structs", "[pack][struct]") {
         nm.arg2 = sp;
         nm.arg3 = mp;
 
-        std::vector<uint8_t> res = packer::pack(nm);
+        std::vector<uint8_t> res = packer::pack_request("test", nm);
         std::vector<uint8_t> packed {
+            4, 0, 0, 0, 0, 0, 0, 0, 
+            't', 'e', 's', 't',
             14, 0, 0, 0, 0, 0, 0, 0, 
             'n', 'e', 's', 't', 'e', 'd', '_', 'm', 'e', 's', 's', 'a', 'g', 'e',
             255, 255, 255, 255, 255, 255, 255, 127, 
@@ -181,13 +187,17 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
         sp.arg1 = 5;
 
         std::vector<uint8_t> packed {
+            4, 0, 0, 0, 0, 0, 0, 0, 
+            't', 'e', 's', 't',
             16, 0, 0, 0, 0, 0, 0, 0, 
             's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
             5, 
         };
-        message_base *res = packer::unpack(packed).release();
+        client_request cr = packer::unpack_request(packed);
+        message_base *res = cr.message_ptr;
         single_primitive sp_unpacked = *(dynamic_cast<single_primitive*>(res));
         REQUIRE(sp_unpacked == sp); 
+        REQUIRE(cr.method_name == "test");
     }
 
     SECTION("multiple primitives") {
@@ -198,6 +208,8 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
         mp.arg4 = "testing_string";
 
         std::vector<uint8_t> packed {
+            4, 0, 0, 0, 0, 0, 0, 0, 
+            't', 'e', 's', 't',
             19, 0, 0, 0, 0, 0, 0, 0, 
             'm', 'u', 'l', 't', 'i', 'p', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's',
             22,
@@ -206,9 +218,12 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
             14, 0, 0, 0, 0, 0, 0, 0,
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
-        message_base *res = packer::unpack(packed).release();
+        client_request cr = packer::unpack_request(packed);
+        message_base *res = cr.message_ptr;
         multiple_primitives mp_unpacked = *(dynamic_cast<multiple_primitives*>(res));
+
         REQUIRE(mp_unpacked == mp); 
+        REQUIRE(cr.method_name == "test");
     }
 
     SECTION("nested messages") {
@@ -227,6 +242,8 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
         nm.arg3 = mp;
 
         std::vector<uint8_t> packed {
+            4, 0, 0, 0, 0, 0, 0, 0, 
+            't', 'e', 's', 't',
             14, 0, 0, 0, 0, 0, 0, 0, 
             'n', 'e', 's', 't', 'e', 'd', '_', 'm', 'e', 's', 's', 'a', 'g', 'e',
             255, 255, 255, 255, 255, 255, 255, 127, 
@@ -238,9 +255,12 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
 
-        message_base *res = packer::unpack(packed).release();
+        client_request cr = packer::unpack_request(packed);
+        message_base *res = cr.message_ptr;
         nested_message nm_unpacked = *(dynamic_cast<nested_message*>(res));
+
         REQUIRE(nm_unpacked == nm); 
+        REQUIRE(cr.method_name == "test");
     }
 }
 

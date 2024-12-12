@@ -1,4 +1,4 @@
-#include <srpc/rpc_element.hpp>
+#include <srpc/element.hpp>
 #include <srpc/lexer.hpp>
 #include <srpc/parser.hpp>
 
@@ -147,8 +147,8 @@ TEST_CASE("Parse Service", "[parse][service]") {
         )";
 
         std::vector<method> my_service_test_case {
-            {"SomeMethod", "Request", "Response", nullptr},
-            {"AnotherMethod", "AnotherRequest", "AnotherResponse", nullptr},
+            {"SomeMethod", "Request", "Response"},
+            {"AnotherMethod", "AnotherRequest", "AnotherResponse"},
         };
 
         lexer l(input);

@@ -128,12 +128,47 @@ TEST_CASE("generate header file service", "[generate][service]") {
 
         std::string expected = remove_whitespace(R"(
         struct my_service_stub {
+	        my_service_stub() {
+	        	if (!initialized) {
+	        		srpc::message_registry["request"] = []() -> std::unique_ptr<request> { 
+                        return std::make_unique<request>(); 
+                    };
+	        		srpc::message_registry["response"] = []() -> std::unique_ptr<response> { 
+                        return std::make_unique<response>(); 
+                    };
+	        	}
+	        	initialized = true;
+	        }
+
+	        void register_insecure_channel(std::string server_ip, std::string port) {
+	        	if (socket_fd != -1) { close(socket_fd); }
+	        	this->socket_fd = srpc::transport::create_client_socket(server_ip, port);
+	        }
+
             response some_method(const request& req) {
-                std::vector<uint8_t> packed = srpc::packer::pack(req);
-            }
+        		std::vector<uint8_t> packed = srpc::packer::pack_request("my_service::some_method", req);
+        		srpc::transport::send_data(this->socket_fd, packed);
+        		std::vector<uint8_t> res = srpc::transport::recv_data(this->socket_fd);
+        
+        		srpc::message_base *msg = srpc::packer::unpack_response(res);
+        		response unpacked = *(dynamic_cast<response*>(msg));
+        
+        		return unpacked;
+        	}
+
+        private:
+        	static bool initialized;
+	        int32_t socket_fd = -1;
         };
-        struct my_service_servicer {
-            virtual response some_method(const request& req) = 0;
+        
+        inline bool my_service_stub::initialized = false;
+        
+        struct my_service_servicer : srpc::servicer_base {
+        	virtual response some_method(const request& req) { throw std::runtime_error("Method not implemented!"); }
+            static constexpr const char* name = "my_service";
+            static constexpr auto fields = std::make_tuple(
+                SERVICE_METHOD(my_service_servicer, some_method)
+            );
         };
         )");
         auto svc = dynamic_pointer_cast<service>(contract::elements[contract::element_index_map["my_service"]]);
@@ -141,28 +176,16 @@ TEST_CASE("generate header file service", "[generate][service]") {
 
         REQUIRE(expected == res); 
     }
-}
 
-TEST_CASE("write to file", "[generate][message][service][file]") {
     SECTION("generated message") {
         contract::elements.clear();
         contract::element_index_map.clear();
         std::string input = R"(
-        message primitive_request {
-            string str = 1;
-            int64 i64 = 2;
+        message number {
+            int64 num = 1;
         }
-        message nested_request {
-            bool random_flag = 1;
-            int64 i64 = 2;
-        }
-        message request {
-            string arg1 = 1;
-            int32 arg2 = 2;
-            nested_request arg3 = 3;
-        }
-        service my_service {
-            method some_method(request) returns (primitive_request);
+        service calculate {
+            method square(number) returns (number);
         }
         )";
         lexer l(input);
@@ -170,10 +193,10 @@ TEST_CASE("write to file", "[generate][message][service][file]") {
         p.parse_contract();
         REQUIRE(p.errors().size() == 0);
         
-        std::string path = "tests/stub/msg_srpc.hpp";
+        std::string path = "tests/stub/e2e_generated.hpp";
         generator::init_file(path);
         generator::handle_contract(path);
-    }
+    } 
 }
 
 }
