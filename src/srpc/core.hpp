@@ -35,11 +35,37 @@ template <typename F>
 struct function_traits;
 
 /// @tparam I input type of function
-/// @tparam O output type of function
-template <typename I, typename O>
-struct function_traits<O (*)(const I&)> {
+/// @tparam R return type of function
+template <typename R, typename I>
+struct function_traits<R (*)(const I&)> {
     using input_type = I;
-    using output_type = O;
+    using return_type = R;
+};
+
+template <typename I, typename R>
+struct function_traits<std::function<R(const I&)>> {
+    using input_type = I;
+    using return_type = R;
+};
+
+/// Member function specialization
+/// @tparam C class of member function
+/// @tparam I input type of function
+/// @tparam R return type of function
+template <typename C, typename R, typename I>
+struct function_traits<R (C::*)(I)>{
+    using class_type = C;
+    using input_type = I;
+    using return_type = R;
+};
+
+
+/// Const member function specialization
+template <typename C, typename R, typename I>
+struct function_traits<R (C::*)(I...) const> {
+    using class_type = C;
+    using input_type = I;
+    using return_type = R;
 };
 
 using message_factory = std::function<std::unique_ptr<message_base>()>;
@@ -48,3 +74,4 @@ using message_factory = std::function<std::unique_ptr<message_base>()>;
 static std::unordered_map<std::string, message_factory> message_registry {};
 
 } // namespace srpc
+

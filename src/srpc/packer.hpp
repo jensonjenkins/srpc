@@ -8,9 +8,56 @@
 
 namespace srpc {
 
-struct client_request {
-    std::string method_name;
-    message_base* message_ptr = nullptr;
+enum rpc_status_code : uint8_t {
+	RPC_SUCCESS = 0,
+	RPC_ERR_FUNCTION_NOT_REGISTERRED,
+	RPC_ERR_RECV_TIMEOUT
+};
+
+template <typename T>
+class request_t {
+public:
+    T value() const { return _value; }
+    std::string& method_name() { return _method_name; }
+    
+    void set_value(T&& v) { _value = std::move(v); }
+    void set_method_name(std::string const& s) { _method_name = s; }
+    
+private:
+    std::string _method_name;
+    T           _value;
+};
+
+template <typename T>
+class response_t {
+public:
+    response_t() : _code(RPC_SUCCESS) {};
+    ~response_t() {};
+
+    rpc_status_code code() const { return _code; }
+    T value() const { return _value; }
+
+    void set_code(rpc_status_code c) { _code = c; }
+    void set_value(T const& v) { _value = v; }
+
+private:
+    rpc_status_code _code;
+    T               _value;
+}; 
+
+struct buffer {
+    buffer() : _offset(0) {}
+    
+    const char* data() { return _data.data(); }
+    
+    void reset() { 
+        _offset = 0;
+        _data.clear();
+    }
+
+private:
+    size_t              _offset;
+    std::vector<char>   _data;
 };
 
 struct packer {
@@ -99,42 +146,51 @@ struct packer {
         return result;
     }
  
-    /// To be called at the server, unpacks a client request.
-    [[nodiscard]] static client_request unpack_request(const std::vector<uint8_t>& packed) noexcept {
+    /// To be called at the server, unpacks a client request. 
+    /// @tparam R request struct type
+    template <typename R>
+    [[nodiscard]] static request_t<R> unpack_request(const std::vector<uint8_t>& packed) noexcept { 
         size_t offset = 0;
-        client_request req;
+        request_t<R> req;
 
-        //read method name
-        std::string method_name = read_string(packed, offset);
-        req.method_name = method_name;
-        //read message name
+        // read method name
+        req.set_method_name(read_string(packed, offset));
+        // read message name
         std::string message_name = read_string(packed, offset);
      
         auto it = message_registry.find(message_name);
         if (it != message_registry.end()) {
-            message_base* message_ptr = it->second().release(); // TODO: releasing on obtain beats the whole idea of
-                                                                // using a unique_ptr. refactor later?
-            message_ptr->unpack(packed, offset);
-            req.message_ptr = message_ptr;
+            std::unique_ptr<R> msg_ptr(dynamic_cast<R*>(it->second().release()));
+            msg_ptr->unpack(packed, offset); 
+            req.set_value(std::move(*msg_ptr));
         }
 
         return req;
     }
 
     /// To be called at the client side, unpacks a server response.
-    [[nodiscard]] static message_base* unpack_response(const std::vector<uint8_t>& packed) noexcept {
+    /// @tparam R response struct type
+    template <typename R>
+    [[nodiscard]] static response_t<R> unpack_response(const std::vector<uint8_t>& packed) noexcept {
         size_t offset = 0;
+        rpc_status_code status;
+        response_t<R> res;
         
+        // read status code
+        std::memcpy(&status, packed.data() + offset, sizeof(rpc_status_code)); 
+        offset += sizeof(int8_t);
+        res.set_code(status);
+        // read message name
         std::string message_name = read_string(packed, offset);
         
         auto it = message_registry.find(message_name);
         if (it != message_registry.end()) {
-            message_base* message_ptr = it->second().release();
-            message_ptr->unpack(packed, offset);
-            return message_ptr;
+            std::unique_ptr<R> msg_ptr(dynamic_cast<R*>(it->second().release()));
+            msg_ptr->unpack(packed, offset); 
+            res.set_value(std::move(*msg_ptr));
         }
 
-        return nullptr;
+        return res;
     }
 };
 

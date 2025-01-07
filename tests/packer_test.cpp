@@ -97,7 +97,7 @@ struct nested_message : public message_base {
     }
 };
 
-TEST_CASE("packing structs", "[pack][struct]") {
+TEST_CASE("pack requests", "[pack][request]") {
     SECTION("single primitive") {
         single_primitive sp;
         sp.arg1 = 5;
@@ -171,14 +171,14 @@ TEST_CASE("packing structs", "[pack][struct]") {
     }
 }
 
-TEST_CASE("unpacking structs", "[unpack][struct]") {
-    message_registry["single_primitive"] = []() -> std::unique_ptr<message_base> { 
+TEST_CASE("unpack request", "[unpack][request]") {
+    message_registry["single_primitive"] = []() -> std::unique_ptr<single_primitive> { 
         return std::make_unique<single_primitive>(); 
     };
-    message_registry["multiple_primitives"] = []() -> std::unique_ptr<message_base> { 
+    message_registry["multiple_primitives"] = []() -> std::unique_ptr<multiple_primitives> { 
         return std::make_unique<multiple_primitives>(); 
     };
-    message_registry["nested_message"] = []() -> std::unique_ptr<message_base> { 
+    message_registry["nested_message"] = []() -> std::unique_ptr<nested_message> { 
         return std::make_unique<nested_message>(); 
     };
 
@@ -193,11 +193,9 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
             's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
             5, 
         };
-        client_request cr = packer::unpack_request(packed);
-        message_base *res = cr.message_ptr;
-        single_primitive sp_unpacked = *(dynamic_cast<single_primitive*>(res));
-        REQUIRE(sp_unpacked == sp); 
-        REQUIRE(cr.method_name == "test");
+        request_t<single_primitive> r = packer::unpack_request<single_primitive>(packed);
+        REQUIRE(r.value() == sp); 
+        REQUIRE(r.method_name() == "test");
     }
 
     SECTION("multiple primitives") {
@@ -208,8 +206,8 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
         mp.arg4 = "testing_string";
 
         std::vector<uint8_t> packed {
-            4, 0, 0, 0, 0, 0, 0, 0, 
-            't', 'e', 's', 't',
+            11, 0, 0, 0, 0, 0, 0, 0, 
+            't', 'e', 's', 't', '_', 'm', 'e', 't', 'h', 'o', 'd',
             19, 0, 0, 0, 0, 0, 0, 0, 
             'm', 'u', 'l', 't', 'i', 'p', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's',
             22,
@@ -218,12 +216,9 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
             14, 0, 0, 0, 0, 0, 0, 0,
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
-        client_request cr = packer::unpack_request(packed);
-        message_base *res = cr.message_ptr;
-        multiple_primitives mp_unpacked = *(dynamic_cast<multiple_primitives*>(res));
-
-        REQUIRE(mp_unpacked == mp); 
-        REQUIRE(cr.method_name == "test");
+        request_t<multiple_primitives> r = packer::unpack_request<multiple_primitives>(packed);
+        REQUIRE(r.value() == mp); 
+        REQUIRE(r.method_name() == "test_method");
     }
 
     SECTION("nested messages") {
@@ -255,12 +250,91 @@ TEST_CASE("unpacking structs", "[unpack][struct]") {
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
 
-        client_request cr = packer::unpack_request(packed);
-        message_base *res = cr.message_ptr;
-        nested_message nm_unpacked = *(dynamic_cast<nested_message*>(res));
+        request_t<nested_message> r = packer::unpack_request<nested_message>(packed);
+        REQUIRE(r.value() == nm); 
+        REQUIRE(r.method_name() == "test");
+    }
+}
 
-        REQUIRE(nm_unpacked == nm); 
-        REQUIRE(cr.method_name == "test");
+TEST_CASE("unpack response", "[unpack][response]") {
+    message_registry["single_primitive"] = []() -> std::unique_ptr<single_primitive> { 
+        return std::make_unique<single_primitive>(); 
+    };
+    message_registry["multiple_primitives"] = []() -> std::unique_ptr<multiple_primitives> { 
+        return std::make_unique<multiple_primitives>(); 
+    };
+    message_registry["nested_message"] = []() -> std::unique_ptr<nested_message> { 
+        return std::make_unique<nested_message>(); 
+    };
+
+    SECTION("single primitive") {
+        single_primitive sp;
+        sp.arg1 = 5;
+
+        std::vector<uint8_t> packed {
+            0,
+            16, 0, 0, 0, 0, 0, 0, 0, 
+            's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
+            5, 
+        };
+        response_t<single_primitive> r = packer::unpack_response<single_primitive>(packed);
+        REQUIRE(r.value() == sp); 
+        REQUIRE(r.code() == RPC_SUCCESS);
+    }
+
+    SECTION("multiple primitives") {
+        multiple_primitives mp;
+        mp.arg1 = 22;
+        mp.arg2 = 'z';
+        mp.arg3 = std::numeric_limits<int64_t>::max();
+        mp.arg4 = "testing_string";
+
+        std::vector<uint8_t> packed {
+            2,
+            19, 0, 0, 0, 0, 0, 0, 0, 
+            'm', 'u', 'l', 't', 'i', 'p', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's',
+            22,
+            'z',
+            255, 255, 255, 255, 255, 255, 255, 127, 
+            14, 0, 0, 0, 0, 0, 0, 0,
+            't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
+        };
+        response_t<multiple_primitives> r = packer::unpack_response<multiple_primitives>(packed);
+        REQUIRE(r.value() == mp); 
+        REQUIRE(r.code() == RPC_ERR_RECV_TIMEOUT);
+    }
+
+    SECTION("nested messages") {
+        single_primitive sp;
+        sp.arg1 = 5;
+
+        multiple_primitives mp;
+        mp.arg1 = 22;
+        mp.arg2 = 'z';
+        mp.arg3 = std::numeric_limits<int64_t>::max();
+        mp.arg4 = "testing_string";
+
+        nested_message nm;
+        nm.arg1 = std::numeric_limits<int64_t>::max();
+        nm.arg2 = sp;
+        nm.arg3 = mp;
+
+        std::vector<uint8_t> packed {
+            1,
+            14, 0, 0, 0, 0, 0, 0, 0, 
+            'n', 'e', 's', 't', 'e', 'd', '_', 'm', 'e', 's', 's', 'a', 'g', 'e',
+            255, 255, 255, 255, 255, 255, 255, 127, 
+            5, 
+            22,
+            'z',
+            255, 255, 255, 255, 255, 255, 255, 127, 
+            14, 0, 0, 0, 0, 0, 0, 0,
+            't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
+        };
+
+        response_t<nested_message> r = packer::unpack_response<nested_message>(packed);
+        REQUIRE(r.value() == nm); 
+        REQUIRE(r.code() == RPC_ERR_FUNCTION_NOT_REGISTERRED);
     }
 }
 

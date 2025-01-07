@@ -1,4 +1,3 @@
-#include <srpc/lexer.hpp>
 #include <srpc/parser.hpp>
 #include <srpc/generator.hpp>
 
@@ -44,7 +43,7 @@ TEST_CASE("end to end test") {
     //
     // server side:
     // RpcServer server();
-    // server.register_service(MyService())
+    // server.register_service(MyService());
     // server.start("0.0.0.0", 5000)
 }
 

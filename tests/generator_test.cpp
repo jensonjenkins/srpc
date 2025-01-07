@@ -1,4 +1,3 @@
-#include <srpc/lexer.hpp>
 #include <srpc/parser.hpp>
 #include <srpc/generator.hpp>
 
@@ -150,10 +149,8 @@ TEST_CASE("generate header file service", "[generate][service]") {
         		srpc::transport::send_data(this->socket_fd, packed);
         		std::vector<uint8_t> res = srpc::transport::recv_data(this->socket_fd);
         
-        		srpc::message_base *msg = srpc::packer::unpack_response(res);
-        		response unpacked = *(dynamic_cast<response*>(msg));
-        
-        		return unpacked;
+        		srpc::response_t<response> msg = srpc::packer::unpack_response<response>(res); 
+        		return msg.value();
         	}
 
         private:

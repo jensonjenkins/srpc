@@ -81,9 +81,8 @@ struct generator {
         msg_stream << "\t\tsrpc::transport::send_data(this->socket_fd, packed);\n"; 
         msg_stream << "\t\tstd::vector<uint8_t> res = srpc::transport::recv_data(this->socket_fd);\n\n"; 
         
-        msg_stream << "\t\tsrpc::message_base *msg = srpc::packer::unpack_response(res);\n";
-        msg_stream << "\t\t" << m->output_t << " unpacked = *(dynamic_cast<" << m->output_t << "*>(msg));\n\n";
-        msg_stream << "\t\treturn unpacked;\n";
+        msg_stream << "\t\tsrpc::response_t<" << m->output_t << "> msg = srpc::packer::unpack_response<" << m->output_t << ">(res);\n";
+        msg_stream << "\t\treturn msg.value();\n";
 
         msg_stream << "\t}\n";
 

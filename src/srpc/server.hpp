@@ -8,23 +8,41 @@
 
 namespace srpc {
 
-using function_base = std::function<std::unique_ptr<message_base>(const message_base&)>;
-
 class server {
 public:
     server() = default;
     ~server() = default;
- 
-    template <typename F>
-    void register_method(std::string const& name, F func) {
+    
+    template <typename F, typename C>
+    void register_method(std::string const& name, F func, C& instance) {
         using input_type = typename function_traits<F>::input_type;
-        using output_type = typename function_traits<F>::output_type;
+        using return_type = typename function_traits<F>::return_type;
+        static_assert(std::is_base_of_v<message_base, std::decay_t<input_type>>);
+        static_assert(std::is_base_of_v<message_base, std::decay_t<return_type>>);
 
-        _function_registry[name] = [func] (const message_base& base_input) -> std::unique_ptr<message_base> {
-            const auto& typed_input = static_cast<const input_type&>(base_input);
-            output_type result = func(typed_input);
-            return std::make_unique<output_type>(result);
-        };
+        _function_registry[name] = std::bind(&call_proxy<F>, this, func, std::placeholders::_1);
+    }
+    
+    template <typename R, typename Arg>
+    R call(std::string name, Arg const& arg) {
+    }
+
+    template <typename F>
+    void call_proxy(F func, std::vector<uint8_t> const& data) { call_proxy_impl(func, data); }
+    
+    template <typename R, typename C, typename I>
+    void call_proxy_impl(R (C::*func)(const I&), I const& arg) {
+        call_proxy_impl(std::function<R(const I&)>(func), arg);
+    }
+
+    template <typename R, typename I>
+    void call_proxy_impl(std::function<R(const I&)> func, I const& arg) {
+		R result = call_helper<R>(func, arg);
+
+		response_t<R> response;
+		response.set_code(RPC_SUCCESS);
+		response.set_value(result);
+		// (*pr) << response;
     }
     
     void register_service(servicer_base const& service) {
@@ -51,23 +69,15 @@ public:
             size_t offset = 0;
             std::vector<uint8_t> packed = transport::recv_data(accepted_fd);
 
-            // deserialize the method name and service name
-            client_request req = packer::unpack_request(packed);
-            auto it = _function_registry.find(req.method_name);
-            if (it == _function_registry.end()) { return; } 
-            
+            // deserialize the method name and service name        
             // call the service's method
-            auto called_function = it->second;
-            std::vector<uint8_t> response = packer::pack_response(*(called_function(*(req.message_ptr))));
-
-            transport::send_data(accepted_fd, response);
         }
 
         close(listening_fd);
     }
 
 private:
-    std::unordered_map<std::string, function_base> _function_registry; 
+    std::unordered_map<std::string, std::function<void(std::vector<uint8_t>)>> _function_registry; 
 };
 
 } //namespace srpc
