@@ -1,0 +1,205 @@
+#pragma once
+
+#include "core.hpp"
+#include <memory>
+#include <vector>
+#include <string>
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+#include <unordered_map>
+
+namespace srpc {
+
+enum rpc_status_code : uint8_t {
+	RPC_SUCCESS = 0,
+	RPC_ERR_FUNCTION_NOT_REGISTERRED,
+	RPC_ERR_RECV_TIMEOUT
+};
+
+template <typename T>
+class request_t {
+public:
+    T value() const { return _value; }
+    const std::string& method_name() const { return _method_name; }
+    
+    void set_value(T&& v) { _value = std::move(v); }
+    void set_method_name(std::string const& s) { _method_name = s; }
+    
+private:
+    std::string _method_name;
+    T           _value;
+};
+
+template <typename T>
+class response_t {
+public:
+    response_t() : _code(RPC_SUCCESS) {};
+    ~response_t() {};
+
+    rpc_status_code code() const { return _code; }
+    T value() const { return _value; }
+
+    void set_code(rpc_status_code c) { _code = c; }
+    void set_value(T const& v) { _value = v; }
+
+private:
+    rpc_status_code _code;
+    T               _value;
+}; 
+
+class packer {
+public:
+    using ptr = std::shared_ptr<packer>;
+
+    packer() { _buf = std::make_shared<buffer>(); }
+    packer(std::vector<uint8_t> const& bytes) { _buf = std::make_shared<buffer>(bytes); }
+    packer(buffer::ptr buf_ptr) : _buf(buf_ptr) {}
+    
+    size_t offset() const noexcept { return _buf->offset(); }
+    void clear() noexcept { _buf->reset(); }
+    buffer::ptr buf() noexcept { return _buf; }
+   
+    template <typename T>
+    constexpr packer& operator>>(T& v) { pipe_output(v); return *this; };
+
+    template <typename T>
+    constexpr packer& operator<<(request_t<T> v) { pack_request(v); return *this; };
+
+    template <typename T>
+    constexpr packer& operator<<(response_t<T> v) { pack_response(v); return *this; };
+
+    /// To pack bytes with the method_name, service_name and message_name as header. 
+    /// Used to pack the outermost struct from client to server (a client request).
+    template <typename T>
+    constexpr void pack_request(request_t<T> const& req) {
+        pack_arg(req.method_name());
+        pack_arg(T::name);
+        pack_tuple(req.value());
+    }
+
+    /// To pack bytes with the message's name as the header. 
+    /// Used to pack the outermost struct from server to client (a server response).
+    template <typename T>
+    constexpr void pack_response(response_t<T> const& resp) {
+        pack_arg(resp.code());
+        pack_arg(T::name);
+        pack_tuple(resp.value());
+    }    
+     
+    /// To be called at the server, unpacks a client request. 
+    /// @tparam R request struct type
+    template <typename R>
+    [[nodiscard]] request_t<R> unpack_request() noexcept { 
+        request_t<R> req;
+
+        std::string method_name;
+        *this >> method_name;
+        req.set_method_name(method_name);
+
+        std::string message_name;
+        *this >> message_name;
+     
+        auto it = message_registry.find(message_name);
+        if (it != message_registry.end()) {
+            std::unique_ptr<R> msg_ptr(dynamic_cast<R*>(it->second().release()));
+            msg_ptr->unpack(_buf);
+            req.set_value(std::move(*msg_ptr));
+        }
+
+        return req;
+    }
+
+    /// To be called at the client side, unpacks a server response.
+    /// @tparam R response struct type
+    template <typename R>
+    [[nodiscard]] response_t<R> unpack_response() noexcept {
+        response_t<R> res;
+        
+        // read status code
+        rpc_status_code status;
+        *this >> status;
+        res.set_code(status);
+
+        // read message name
+        std::string message_name;
+        *this >> message_name;
+        
+        auto it = message_registry.find(message_name);
+        if (it != message_registry.end()) {
+            std::unique_ptr<R> msg_ptr(dynamic_cast<R*>(it->second().release()));
+            msg_ptr->unpack(_buf);
+            res.set_value(std::move(*msg_ptr));
+        }
+
+        return res;
+    }
+
+private:
+    template <typename T>
+    constexpr void pipe_output(T& v) noexcept;
+    
+    template <>
+    void pipe_output(std::string& v) noexcept; 
+
+    template <typename T>
+    constexpr void pack_arg(T const& arg) noexcept;
+
+    template <typename T>
+    constexpr void pack_tuple(T const& arg) noexcept {
+        std::apply(
+            [this, &arg] (const auto&... field) { (pack_arg(arg.*(field)), ...); },
+            T::fields
+        );
+    }
+
+    buffer::ptr _buf;
+};
+
+template <typename T>
+constexpr void packer::pack_arg(T const& arg) noexcept {
+    if constexpr (std::is_base_of_v<message_base, T>) {
+        pack_tuple(arg);
+    } else {
+        const uint8_t* data = reinterpret_cast<const uint8_t*>(&arg);
+        _buf->append(data, sizeof(T));
+    }
+}
+
+template <>
+inline void packer::pack_arg<std::string>(std::string const& arg) noexcept {
+    size_t length = arg.size();
+    pack_arg(length);
+    _buf->append(arg.begin(), arg.end());
+}
+
+/// const char* const& might be a bit confusing. essentially its a const reference (can't reassign pointer)
+/// to a const char pointer (pointer to a const char) meaning you can't modify the object it is pointing to.
+/// so you cant modify nor can you modify the pointer to point to something else.
+template <>
+inline void packer::pack_arg<const char*>(const char* const& arg) noexcept {
+    size_t length = std::strlen(arg);
+    pack_arg(length);
+    _buf->append(reinterpret_cast<const uint8_t*>(arg), std::strlen(arg));
+}
+
+template <typename T>
+constexpr void packer::pipe_output(T& v) noexcept {
+    std::memcpy(&v, _buf->curdata(), sizeof(T)); 
+    _buf->increment(sizeof(T)); 
+}
+
+template <>
+inline void packer::pipe_output(std::string& v) noexcept {
+    int64_t strlen = 0;
+    pipe_output(strlen);
+    v = std::string(reinterpret_cast<const char*>(_buf->curdata()), strlen);
+    _buf->increment(strlen); 
+}
+
+} // namespace srpc
+
+
+
+
+

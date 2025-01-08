@@ -11,10 +11,9 @@ struct number : public srpc::message_base {
 	static constexpr auto fields = std::make_tuple(
 		MESSAGE_FIELD(number, num)
 	);
-	void unpack(const std::vector<uint8_t>& packed, size_t& offset) override {
-		int64_t header_length = 0;
-		std::memcpy(&num, packed.data() + offset, sizeof(int64_t));
-		offset += sizeof(int64_t);
+	void unpack(srpc::buffer::ptr bp) override {
+        srpc::packer p(bp);
+        p >> num;
 	}
 };
 

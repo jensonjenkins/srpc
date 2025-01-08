@@ -76,8 +76,13 @@ struct generator {
     [[nodiscard]] static std::string get_client_stub_method(const std::string& svc_name, method* m) noexcept {
         std::ostringstream msg_stream;
 
-        msg_stream << "\t" << m->output_t << " " << m->name << "(const " << m->input_t << "& req) {\n";
-        msg_stream << "\t\tstd::vector<uint8_t> packed = srpc::packer::pack_request(\"" << svc_name << "::" << m->name << "\", req);\n"; 
+        msg_stream << "\t" << m->output_t << " " << m->name << "(" << m->input_t << "& req) {\n";
+
+        msg_stream << "\t\tsrpc::request_t<number> request;\n";
+        msg_stream << "\t\trequest.set_method_name(\"" << svc_name << "::" << m->name << "\");\n";
+        msg_stream << "\t\trequest.set_value(std::move(req));\n";
+
+        msg_stream << "\t\tsrpc::buffer packed = srpc::packer::pack_request(request);\n"; 
         msg_stream << "\t\tsrpc::transport::send_data(this->socket_fd, packed);\n"; 
         msg_stream << "\t\tstd::vector<uint8_t> res = srpc::transport::recv_data(this->socket_fd);\n\n"; 
         

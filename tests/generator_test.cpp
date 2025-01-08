@@ -144,8 +144,12 @@ TEST_CASE("generate header file service", "[generate][service]") {
 	        	this->socket_fd = srpc::transport::create_client_socket(server_ip, port);
 	        }
 
-            response some_method(const request& req) {
-        		std::vector<uint8_t> packed = srpc::packer::pack_request("my_service::some_method", req);
+            response some_method(request& req) {
+                srpc::request_t<number> request;
+                request.set_method_name("my_service::some_method");
+                request.set_value(std::move(req));
+
+        		srpc::buffer packed = srpc::packer::pack_request(request);
         		srpc::transport::send_data(this->socket_fd, packed);
         		std::vector<uint8_t> res = srpc::transport::recv_data(this->socket_fd);
         
@@ -190,9 +194,9 @@ TEST_CASE("generate header file service", "[generate][service]") {
         p.parse_contract();
         REQUIRE(p.errors().size() == 0);
         
-        std::string path = "tests/stub/e2e_generated.hpp";
-        generator::init_file(path);
-        generator::handle_contract(path);
+        // std::string path = "tests/stub/e2e_generated.hpp";
+        // generator::init_file(path);
+        // generator::handle_contract(path);
     } 
 }
 

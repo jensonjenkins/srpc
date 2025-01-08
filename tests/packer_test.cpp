@@ -18,9 +18,9 @@ struct single_primitive : public message_base {
     );
 
     constexpr bool operator==(const single_primitive& other) const noexcept { return arg1 == other.arg1; }
-    void unpack(const std::vector<uint8_t>& packed, size_t& offset) override {
-        std::memcpy(&arg1, packed.data() + offset, sizeof(int8_t)); 
-        offset += sizeof(int8_t);
+    void unpack(buffer::ptr bp) override {
+        packer p(bp);
+        p >> arg1;
     }
 };
 
@@ -46,20 +46,12 @@ struct multiple_primitives : public message_base {
             arg4 == other.arg4; 
     }
 
-    void unpack(const std::vector<uint8_t>& packed, size_t& offset) override {
-        int64_t header_length = 0;
-        std::memcpy(&arg1, packed.data() + offset, sizeof(int8_t)); 
-        offset += sizeof(int8_t);
-        std::memcpy(&arg2, packed.data() + offset, sizeof(char)); 
-        offset += sizeof(char);
-        std::memcpy(&arg3, packed.data() + offset, sizeof(int64_t)); 
-        offset += sizeof(int64_t);
-
-
-        std::memcpy(&header_length, packed.data() + offset, sizeof(int64_t));
-        offset += sizeof(int64_t);
-        arg4 = std::string(reinterpret_cast<const char*>(packed.data() + offset), header_length);
-        offset += header_length;        
+    void unpack(buffer::ptr bp) override {
+        packer p(bp);
+        p >> arg1;
+        p >> arg2;
+        p >> arg3;
+        p >> arg4;
     }
 };
 
@@ -82,17 +74,16 @@ struct nested_message : public message_base {
             arg3 == other.arg3;
     }
 
-    void unpack(const std::vector<uint8_t>& packed, size_t& offset) override {
-        int64_t header_length = 0;
-        std::memcpy(&arg1, packed.data() + offset, sizeof(int64_t)); 
-        offset += sizeof(int64_t);
+    void unpack(buffer::ptr bp) override {
+        packer p(bp);
+        p >> arg1;
         
         single_primitive arg2_;
-        arg2_.unpack(packed, offset);
+        arg2_.unpack(bp);
         arg2 = std::move(arg2_);
 
         multiple_primitives arg3_;
-        arg3_.unpack(packed, offset);
+        arg3_.unpack(bp);
         arg3 = std::move(arg3_);
     }
 };
@@ -101,8 +92,13 @@ TEST_CASE("pack requests", "[pack][request]") {
     SECTION("single primitive") {
         single_primitive sp;
         sp.arg1 = 5;
+        
+        packer pr;
+        request_t<single_primitive> req;
+        req.set_value(std::move(sp));
+        req.set_method_name("test");
+        pr.pack_request(req);
 
-        std::vector<uint8_t> res = packer::pack_request("test", sp);
         std::vector<uint8_t> packed {
             4, 0, 0, 0, 0, 0, 0, 0, 
             't', 'e', 's', 't',
@@ -110,8 +106,8 @@ TEST_CASE("pack requests", "[pack][request]") {
             's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
             5, 
         };
-        CAPTURE(res);
-        REQUIRE(packed == res);
+        CAPTURE(*pr.buf());
+        REQUIRE(packed == *pr.buf());
     }
 
     SECTION("multiple primitives") {
@@ -121,7 +117,12 @@ TEST_CASE("pack requests", "[pack][request]") {
         mp.arg3 = std::numeric_limits<int64_t>::max();
         mp.arg4 = "testing_string";
 
-        std::vector<uint8_t> res = packer::pack_request("test", mp);
+        packer pr;
+        request_t<multiple_primitives> req;
+        req.set_value(std::move(mp));
+        req.set_method_name("test");
+        pr.pack_request(req);
+
         std::vector<uint8_t> packed {
             4, 0, 0, 0, 0, 0, 0, 0, 
             't', 'e', 's', 't',
@@ -133,8 +134,8 @@ TEST_CASE("pack requests", "[pack][request]") {
             14, 0, 0, 0, 0, 0, 0, 0,
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
-        CAPTURE(res);
-        REQUIRE(packed == res);
+        CAPTURE(*pr.buf());
+        REQUIRE(packed == *pr.buf());
     }
 
     SECTION("nested message") {
@@ -151,8 +152,13 @@ TEST_CASE("pack requests", "[pack][request]") {
         nm.arg1 = std::numeric_limits<int64_t>::max();
         nm.arg2 = sp;
         nm.arg3 = mp;
+        
+        packer pr;
+        request_t<nested_message> req;
+        req.set_value(std::move(nm));
+        req.set_method_name("test");
+        pr.pack_request(req);
 
-        std::vector<uint8_t> res = packer::pack_request("test", nm);
         std::vector<uint8_t> packed {
             4, 0, 0, 0, 0, 0, 0, 0, 
             't', 'e', 's', 't',
@@ -166,8 +172,94 @@ TEST_CASE("pack requests", "[pack][request]") {
             14, 0, 0, 0, 0, 0, 0, 0,
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
-        CAPTURE(res);
-        REQUIRE(packed == res);
+        CAPTURE(*pr.buf());
+        REQUIRE(packed == *pr.buf());
+    }
+}
+
+TEST_CASE("pack response", "[pack][response]") {
+    SECTION("single primitive") {
+        single_primitive sp;
+        sp.arg1 = 5;
+
+        packer pr;
+        response_t<single_primitive> res;
+        res.set_value(std::move(sp));
+        res.set_code(RPC_SUCCESS);
+        pr.pack_response(res);
+
+        std::vector<uint8_t> packed {
+            0,
+            16, 0, 0, 0, 0, 0, 0, 0, 
+            's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
+            5, 
+        };
+        CAPTURE(*pr.buf());
+        REQUIRE(packed == *pr.buf());
+    }
+
+    SECTION("multiple primitives") {
+        multiple_primitives mp;
+        mp.arg1 = 22;
+        mp.arg2 = 'z';
+        mp.arg3 = std::numeric_limits<int64_t>::max();
+        mp.arg4 = "testing_string";
+    
+        packer pr;
+        response_t<multiple_primitives> res;
+        res.set_value(std::move(mp));
+        res.set_code(RPC_ERR_RECV_TIMEOUT);
+        pr.pack_response(res);
+
+        std::vector<uint8_t> packed {
+            2,
+            19, 0, 0, 0, 0, 0, 0, 0, 
+            'm', 'u', 'l', 't', 'i', 'p', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's',
+            22,
+            'z',
+            255, 255, 255, 255, 255, 255, 255, 127, 
+            14, 0, 0, 0, 0, 0, 0, 0,
+            't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
+        };
+        CAPTURE(*pr.buf());
+        REQUIRE(packed == *pr.buf());
+    }
+
+    SECTION("nested message") {
+        single_primitive sp;
+        sp.arg1 = 5;
+
+        multiple_primitives mp;
+        mp.arg1 = 22;
+        mp.arg2 = 'z';
+        mp.arg3 = std::numeric_limits<int64_t>::max();
+        mp.arg4 = "testing_string";
+
+        nested_message nm;
+        nm.arg1 = std::numeric_limits<int64_t>::max();
+        nm.arg2 = sp;
+        nm.arg3 = mp;
+        
+        packer pr;
+        response_t<nested_message> res;
+        res.set_value(std::move(nm));
+        res.set_code(RPC_ERR_FUNCTION_NOT_REGISTERRED);
+        pr.pack_response(res);
+
+        std::vector<uint8_t> packed {
+            1,
+            14, 0, 0, 0, 0, 0, 0, 0, 
+            'n', 'e', 's', 't', 'e', 'd', '_', 'm', 'e', 's', 's', 'a', 'g', 'e',
+            255, 255, 255, 255, 255, 255, 255, 127, 
+            5, 
+            22,
+            'z',
+            255, 255, 255, 255, 255, 255, 255, 127, 
+            14, 0, 0, 0, 0, 0, 0, 0,
+            't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
+        };
+        CAPTURE(*pr.buf());
+        REQUIRE(packed == *pr.buf());
     }
 }
 
@@ -186,14 +278,15 @@ TEST_CASE("unpack request", "[unpack][request]") {
         single_primitive sp;
         sp.arg1 = 5;
 
-        std::vector<uint8_t> packed {
+        std::vector<uint8_t> bytes {
             4, 0, 0, 0, 0, 0, 0, 0, 
             't', 'e', 's', 't',
             16, 0, 0, 0, 0, 0, 0, 0, 
             's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
             5, 
         };
-        request_t<single_primitive> r = packer::unpack_request<single_primitive>(packed);
+        packer pr(bytes);
+        request_t<single_primitive> r = pr.unpack_request<single_primitive>();
         REQUIRE(r.value() == sp); 
         REQUIRE(r.method_name() == "test");
     }
@@ -205,7 +298,7 @@ TEST_CASE("unpack request", "[unpack][request]") {
         mp.arg3 = std::numeric_limits<int64_t>::max();
         mp.arg4 = "testing_string";
 
-        std::vector<uint8_t> packed {
+        std::vector<uint8_t> bytes {
             11, 0, 0, 0, 0, 0, 0, 0, 
             't', 'e', 's', 't', '_', 'm', 'e', 't', 'h', 'o', 'd',
             19, 0, 0, 0, 0, 0, 0, 0, 
@@ -216,7 +309,8 @@ TEST_CASE("unpack request", "[unpack][request]") {
             14, 0, 0, 0, 0, 0, 0, 0,
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
-        request_t<multiple_primitives> r = packer::unpack_request<multiple_primitives>(packed);
+        packer pr(bytes);
+        request_t<multiple_primitives> r = pr.unpack_request<multiple_primitives>();
         REQUIRE(r.value() == mp); 
         REQUIRE(r.method_name() == "test_method");
     }
@@ -236,7 +330,7 @@ TEST_CASE("unpack request", "[unpack][request]") {
         nm.arg2 = sp;
         nm.arg3 = mp;
 
-        std::vector<uint8_t> packed {
+        std::vector<uint8_t> bytes {
             4, 0, 0, 0, 0, 0, 0, 0, 
             't', 'e', 's', 't',
             14, 0, 0, 0, 0, 0, 0, 0, 
@@ -250,7 +344,8 @@ TEST_CASE("unpack request", "[unpack][request]") {
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
 
-        request_t<nested_message> r = packer::unpack_request<nested_message>(packed);
+        packer pr(bytes);
+        request_t<nested_message> r = pr.unpack_request<nested_message>();
         REQUIRE(r.value() == nm); 
         REQUIRE(r.method_name() == "test");
     }
@@ -271,13 +366,14 @@ TEST_CASE("unpack response", "[unpack][response]") {
         single_primitive sp;
         sp.arg1 = 5;
 
-        std::vector<uint8_t> packed {
+        std::vector<uint8_t> bytes {
             0,
             16, 0, 0, 0, 0, 0, 0, 0, 
             's', 'i', 'n', 'g', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e',
             5, 
         };
-        response_t<single_primitive> r = packer::unpack_response<single_primitive>(packed);
+        packer pr(bytes);
+        response_t<single_primitive> r = pr.unpack_response<single_primitive>();
         REQUIRE(r.value() == sp); 
         REQUIRE(r.code() == RPC_SUCCESS);
     }
@@ -289,7 +385,7 @@ TEST_CASE("unpack response", "[unpack][response]") {
         mp.arg3 = std::numeric_limits<int64_t>::max();
         mp.arg4 = "testing_string";
 
-        std::vector<uint8_t> packed {
+        std::vector<uint8_t> bytes {
             2,
             19, 0, 0, 0, 0, 0, 0, 0, 
             'm', 'u', 'l', 't', 'i', 'p', 'l', 'e', '_', 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', 's',
@@ -299,7 +395,8 @@ TEST_CASE("unpack response", "[unpack][response]") {
             14, 0, 0, 0, 0, 0, 0, 0,
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
-        response_t<multiple_primitives> r = packer::unpack_response<multiple_primitives>(packed);
+        packer pr(bytes);
+        response_t<multiple_primitives> r = pr.unpack_response<multiple_primitives>();
         REQUIRE(r.value() == mp); 
         REQUIRE(r.code() == RPC_ERR_RECV_TIMEOUT);
     }
@@ -319,7 +416,7 @@ TEST_CASE("unpack response", "[unpack][response]") {
         nm.arg2 = sp;
         nm.arg3 = mp;
 
-        std::vector<uint8_t> packed {
+        std::vector<uint8_t> bytes {
             1,
             14, 0, 0, 0, 0, 0, 0, 0, 
             'n', 'e', 's', 't', 'e', 'd', '_', 'm', 'e', 's', 's', 'a', 'g', 'e',
@@ -331,8 +428,8 @@ TEST_CASE("unpack response", "[unpack][response]") {
             14, 0, 0, 0, 0, 0, 0, 0,
             't', 'e', 's', 't', 'i', 'n', 'g', '_', 's', 't', 'r', 'i', 'n', 'g'
         };
-
-        response_t<nested_message> r = packer::unpack_response<nested_message>(packed);
+        packer pr(bytes);
+        response_t<nested_message> r = pr.unpack_response<nested_message>();
         REQUIRE(r.value() == nm); 
         REQUIRE(r.code() == RPC_ERR_FUNCTION_NOT_REGISTERRED);
     }

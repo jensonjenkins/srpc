@@ -3,6 +3,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 project(srpc VERSION 0.0.1)
 
-add_subdirectory(src)
+add_subdirectory(include)
 add_subdirectory(tests)
 add_subdirectory(tests/stub)

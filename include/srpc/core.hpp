@@ -1,8 +1,7 @@
 #pragma once
 
-#include <tuple>
+#include <stdexcept>
 #include <functional>
-#include <unordered_map>
 
 namespace srpc {
 
@@ -14,16 +13,40 @@ namespace srpc {
 #define SERVICE_METHOD(gen_struct, field) std::make_tuple(#field, &gen_struct::field)
 #endif
 
-// To be inherited by generated messages
+struct buffer : public std::vector<uint8_t> {
+    using ptr = std::shared_ptr<buffer>;
+
+    constexpr buffer() : _offset(0) {}
+    constexpr buffer(std::vector<uint8_t> bytes) : _offset(0), std::vector<uint8_t>(bytes) {} 
+    constexpr buffer(std::vector<uint8_t>&& bytes) : _offset(0), std::vector<uint8_t>(std::move(bytes)) {} 
+    
+    constexpr size_t offset() noexcept { return _offset; }
+    constexpr const uint8_t* data() noexcept { return &(*this)[0]; }
+    constexpr const uint8_t* curdata() noexcept { return &(*this)[_offset]; }
+    constexpr void increment(int32_t k) { 
+        if (_offset + k > size()) {
+            throw std::runtime_error("offset out of bounds!");
+        }
+        _offset += k; 
+    }
+    constexpr void append(const uint8_t* s, size_t len) { insert(end(), s, s + len); }
+    template <typename It> constexpr void append(It b, It e) { insert(end(), b, e); }
+    constexpr void reset() { _offset = 0; clear(); }
+
+private:
+    size_t _offset;
+};
+
+/// To be inherited by generated messages
 struct message_base {
     virtual ~message_base() = default;
-    virtual void unpack(const std::vector<uint8_t>& packed, size_t& offset) {};
+    virtual void unpack(buffer::ptr bp) {};
 
     static constexpr const char* name = nullptr;
     static constexpr auto fields = std::make_tuple();
 };
 
-// To be inherited by generated services 
+/// To be inherited by generated messages
 struct servicer_base {
     virtual ~servicer_base() = default;
 
@@ -70,7 +93,7 @@ struct function_traits<R (C::*)(I...) const> {
 
 using message_factory = std::function<std::unique_ptr<message_base>()>;
 
-// to be populated with user generated structs 
+/// To be populated with user generated structs 
 static std::unordered_map<std::string, message_factory> message_registry {};
 
 } // namespace srpc

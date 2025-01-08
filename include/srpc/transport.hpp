@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace srpc {
+    namespace srpc {
 
 #ifndef SOCKET_SEND_FLAGS
 #define SOCKET_SEND_FLAGS 0
@@ -36,16 +36,16 @@ struct transport {
             exit(EXIT_FAILURE);
         }
 
-    if ((listening_fd = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) < 0) {
-        fprintf(stderr, "srpc::transport::create_server_socket(): error creating socket.\n");
-        exit(EXIT_FAILURE);
-    }
-           
-    if (bind(listening_fd, servinfo->ai_addr, servinfo->ai_addrlen) < 0) {
-        fprintf(stderr, "srpc::transport::create_server_socket(): bind failed.\n");
-        close(listening_fd);
-        exit(EXIT_FAILURE);
-    }
+        if ((listening_fd = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) < 0) {
+            fprintf(stderr, "srpc::transport::create_server_socket(): error creating socket.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        if (bind(listening_fd, servinfo->ai_addr, servinfo->ai_addrlen) < 0) {
+            fprintf(stderr, "srpc::transport::create_server_socket(): bind failed.\n");
+            close(listening_fd);
+            exit(EXIT_FAILURE);
+        }
 
         if (listen(listening_fd, BACKLOG_SZ) < 0) { 
             fprintf(stderr, "srpc::transport::create_server_socket(): listen failed.\n");
