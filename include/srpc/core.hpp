@@ -17,9 +17,10 @@ struct buffer : public std::vector<uint8_t> {
     using ptr = std::shared_ptr<buffer>;
 
     constexpr buffer() : _offset(0) {}
-    constexpr buffer(std::vector<uint8_t> bytes) : _offset(0), std::vector<uint8_t>(bytes) {} 
+    constexpr buffer(std::vector<uint8_t> const& bytes) : _offset(0), std::vector<uint8_t>(bytes) {} 
     constexpr buffer(std::vector<uint8_t>&& bytes) : _offset(0), std::vector<uint8_t>(std::move(bytes)) {} 
     
+    constexpr size_t cursize() noexcept { return size() - _offset; }
     constexpr size_t offset() noexcept { return _offset; }
     constexpr const uint8_t* data() noexcept { return &(*this)[0]; }
     constexpr const uint8_t* curdata() noexcept { return &(*this)[_offset]; }

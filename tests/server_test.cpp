@@ -27,7 +27,7 @@ struct calculate_servicer : srpc::servicer_base {
 };
 
 struct calculator : public calculate_servicer {
-    virtual number square(const number& req) {
+    virtual number square(number& req) {
         number out;
         out.num = req.num * req.num;
         return out;  
@@ -37,15 +37,9 @@ struct calculator : public calculate_servicer {
 namespace srpc {
 
 TEST_CASE("register method", "[server][register][method]") {
-    // server s;
-    // calculator c;
-    //
-    // s.register_method("square", &calculate_servicer::square, c);
-    //
-    // number input, output;
-    // input.num = 5;
-    //
-    // output = s.call<number>("square", input);
+    server s;
+    calculator calc_instance;
+    s.register_method("calculator::square", &calculator::square, calc_instance);
 }
 
 TEST_CASE("register service", "[server][register][service]") {

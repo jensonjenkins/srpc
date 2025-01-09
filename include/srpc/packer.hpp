@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include <cstddef>
 #include <cstdint>
+#include <cassert>
 #include <type_traits>
 #include <unordered_map>
 
@@ -54,20 +54,20 @@ public:
 
     packer() { _buf = std::make_shared<buffer>(); }
     packer(std::vector<uint8_t> const& bytes) { _buf = std::make_shared<buffer>(bytes); }
+    packer(std::vector<uint8_t>&& bytes) { _buf = std::make_shared<buffer>(std::move(bytes)); }
     packer(buffer::ptr buf_ptr) : _buf(buf_ptr) {}
-    
-    size_t offset() const noexcept { return _buf->offset(); }
-    void clear() noexcept { _buf->reset(); }
+
+    constexpr const uint8_t* data() { return _buf->curdata(); }
+    constexpr size_t size() { return _buf->cursize(); }
+    constexpr size_t offset() const noexcept { return _buf->offset(); }
+    constexpr void clear() noexcept { _buf->reset(); }
     buffer::ptr buf() noexcept { return _buf; }
    
     template <typename T>
     constexpr packer& operator>>(T& v) { pipe_output(v); return *this; };
 
     template <typename T>
-    constexpr packer& operator<<(request_t<T> v) { pack_request(v); return *this; };
-
-    template <typename T>
-    constexpr packer& operator<<(response_t<T> v) { pack_response(v); return *this; };
+    constexpr packer& operator<<(T v) { pack_arg(v); return *this; };
 
     /// To pack bytes with the method_name, service_name and message_name as header. 
     /// Used to pack the outermost struct from client to server (a client request).
@@ -101,6 +101,8 @@ public:
         *this >> message_name;
      
         auto it = message_registry.find(message_name);
+        // TODO: change this to 'it == message_registry.end()' and add error exception 
+        // (package and send out some error in the request_t class)
         if (it != message_registry.end()) {
             std::unique_ptr<R> msg_ptr(dynamic_cast<R*>(it->second().release()));
             msg_ptr->unpack(_buf);
@@ -126,13 +128,31 @@ public:
         *this >> message_name;
         
         auto it = message_registry.find(message_name);
-        if (it != message_registry.end()) {
+        // TODO: change this to 'it == message_registry.end()' and add error exception 
+        // (package and send out some error in the response_t class)
+        if (it != message_registry.end()) { 
             std::unique_ptr<R> msg_ptr(dynamic_cast<R*>(it->second().release()));
             msg_ptr->unpack(_buf);
             res.set_value(std::move(*msg_ptr));
         }
 
         return res;
+    }
+    
+    /// To be called to get the message  in a buffer without metadata
+    template <typename T>
+    [[nodiscard]] T* getv() noexcept {
+        std::string message_name;
+        *this >> message_name;
+
+        auto it = message_registry.find(message_name);
+        if (it == message_registry.end()) { return nullptr; }
+        T* v(dynamic_cast<T*>(it->second().release()));
+        v->unpack(_buf);
+
+        assert(size() == _buf->size());
+     
+        return v;
     }
 
 private:
