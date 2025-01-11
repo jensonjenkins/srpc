@@ -4,40 +4,36 @@
 #include "transport.hpp"
 #include "packer.hpp"
 #include <functional>
+#include <type_traits>
 #include <unordered_map>
 
 namespace srpc {
-
-#ifndef METHOD_NAME_IDX
-#define METHOD_NAME_IDX 0
-#endif
-
-#ifndef FUNC_PTR_IDX 
-#define FUNC_PTR_IDX 1
-#endif
 
 class server {
 public:
     server() = default;
     ~server() = default;
     
+    /// @brief
+    /// @tparam F
+    /// @tparam S
     template <typename F, typename S> 
     void register_method(std::string const& name, F func, S& instance) {
         using input_type = typename function_traits<F>::input_type;
         using return_type = typename function_traits<F>::return_type;
         static_assert(std::is_base_of_v<message_base, std::decay_t<input_type>>);
         static_assert(std::is_base_of_v<message_base, std::decay_t<return_type>>);
-
+    
         _function_registry[name] = std::bind(
                 &server::call_proxy<F, S>, this, func, instance, std::placeholders::_1, std::placeholders::_2);
     }
  
     packer::ptr call(std::string const& funcname, packer::ptr p) {
         packer::ptr rp = std::make_shared<packer>(); // packer to populate with return value
-
+        
         auto it = _function_registry.find(funcname);
         if (it == _function_registry.end()) {
-            fprintf(stderr, "srpc::server::call(): function not registerred.\n");
+            fprintf(stderr, "srpc::server::call(): function %s not registered.\n", funcname.c_str());
             (*rp) << static_cast<uint8_t>(RPC_ERR_FUNCTION_NOT_REGISTERED);
         }
 
@@ -54,10 +50,13 @@ public:
     /// @param  rp          packer to be populated with return value (return packer)
     /// @param  cp          packer containing data to be read from (client packer)
     template <typename F, typename S>
-    void call_proxy(F func, S& instance, packer* rp, packer* cp) { call_proxy(func, instance, rp, cp); }
+    void call_proxy(F func, S& instance, packer* rp, packer* cp) { call_proxy_impl(func, instance, rp, cp); }
     
+    
+    /// @tparam R function return type 
+    /// @tparam I function input type
     template <Derived<message_base> R, typename C, Derived<message_base> I, typename S>
-    void call_proxy(R (C::*func)(I&), S& instance, packer* rp, packer* cp) {
+    void call_proxy_impl(R (C::*func)(I&), S& instance, packer* rp, packer* cp) {
         I* arg = cp->getv<I>();
         R result = (instance.*func)(*arg);
 
@@ -66,14 +65,17 @@ public:
 		response.set_value(result);
         rp->pack_response(response);
     }
- 
-    void register_service(servicer_base const& service_instance) {
+
+    /// @tparam S                   (derived from servicer_base) servicer class
+    /// @param  service_instance    instance of S
+    template <Derived<servicer_base> S> requires has_methods_v<S>
+    void register_service(S& service_instance) {
+        static_assert(std::tuple_size_v<decltype(S::methods)> > 0, "S::methods is empty!");
         std::apply(
-            [this, &service_instance] (auto... method) {
-                (register_method(
-                    (decltype(method)::member_name), decltype(method)::member_ptr, service_instance), ...);
+            [this, &service_instance] (const auto&... method) {
+                (register_method(std::get<MEMBER_NAME>(method), std::get<MEMBER_ADDR>(method), service_instance), ...);
             },
-            servicer_base::methods
+            S::methods
         );
     }
     

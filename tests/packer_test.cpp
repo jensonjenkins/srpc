@@ -14,7 +14,7 @@ struct single_primitive : public message_base {
     // overrides 
     static constexpr const char* name = "single_primitive";
     static constexpr auto fields = std::make_tuple(
-        STRUCT_MEMBER(single_primitive, arg1)
+        STRUCT_MEMBER(single_primitive, arg1, "single_primitive::arg1")
     );
 
     constexpr bool operator==(const single_primitive& other) const noexcept { return arg1 == other.arg1; }
@@ -33,10 +33,10 @@ struct multiple_primitives : public message_base {
     // overrides 
     static constexpr const char* name = "multiple_primitives";
     static constexpr auto fields = std::make_tuple(
-        STRUCT_MEMBER(multiple_primitives, arg1),
-        STRUCT_MEMBER(multiple_primitives, arg2),
-        STRUCT_MEMBER(multiple_primitives, arg3),
-        STRUCT_MEMBER(multiple_primitives, arg4)
+        STRUCT_MEMBER(multiple_primitives, arg1, "multiple_primitives::arg1"),
+        STRUCT_MEMBER(multiple_primitives, arg2, "multiple_primitives::arg2"),
+        STRUCT_MEMBER(multiple_primitives, arg3, "multiple_primitives::arg3"),
+        STRUCT_MEMBER(multiple_primitives, arg4, "multiple_primitives::arg4")
     );
 
     constexpr bool operator==(const multiple_primitives& other) const noexcept { 
@@ -63,9 +63,9 @@ struct nested_message : public message_base {
     // overrides
     static constexpr const char* name = "nested_message";
     static constexpr auto fields = std::make_tuple(
-        STRUCT_MEMBER(nested_message, arg1),
-        STRUCT_MEMBER(nested_message, arg2),
-        STRUCT_MEMBER(nested_message, arg3)
+        STRUCT_MEMBER(nested_message, arg1, "nested_message::arg1"),
+        STRUCT_MEMBER(nested_message, arg2, "nested_message::arg2"),
+        STRUCT_MEMBER(nested_message, arg3, "nested_message::arg3")
     );
 
     constexpr bool operator==(const nested_message& other) const noexcept { 

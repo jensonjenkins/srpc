@@ -5,24 +5,16 @@
 
 namespace srpc {
 
-#ifndef FIELD_TO_STR 
-#define FIELD_TO_STR(field) #field
-#endif
-
-template <typename T, auto Member>
-struct struct_member {
-    struct_member() = default;
-
-    static constexpr const char* member_name = FIELD_TO_STR(Member);
-    static constexpr auto member_ptr = Member;
-};
-
-#ifndef STRUCT_MEMBER_T
-#define STRUCT_MEMBER_T(struct_t, member_name) srpc::struct_member<struct_t, &struct_t::member_name>
-#endif
-
 #ifndef STRUCT_MEMBER
-#define STRUCT_MEMBER(struct_t, member_name) STRUCT_MEMBER_T(struct_t, member_name)()
+#define STRUCT_MEMBER(struct_t, member_name, member_str) std::make_tuple(member_str, &struct_t::member_name)
+#endif
+
+#ifndef MEMBER_NAME
+#define MEMBER_NAME 0
+#endif
+
+#ifndef MEMBER_ADDR
+#define MEMBER_ADDR 1
 #endif
 
 struct buffer : public std::vector<uint8_t> {
@@ -105,6 +97,33 @@ struct function_traits<R (C::*)(I...) const> {
 
 template <typename D, typename B>
 concept Derived = std::is_base_of_v<B, D>;
+
+template <typename T, typename = void>
+struct has_methods : std::false_type {};
+
+template <typename T>
+struct has_methods<T, std::void_t<decltype(T::methods)>> : std::true_type {};
+
+template <typename T>
+constexpr bool has_methods_v = has_methods<T>::value;
+
+template <typename T, typename = void>
+struct has_fields : std::false_type {};
+
+template <typename T>
+struct has_fields<T, std::void_t<decltype(T::fields)>> : std::true_type {};
+
+template <typename T>
+constexpr bool has_fields_v = has_fields<T>::value;
+
+template <typename T, typename = void>
+struct has_name : std::false_type {};
+
+template <typename T>
+struct has_name<T, std::void_t<decltype(T::name)>> : std::true_type {};
+
+template <typename T>
+constexpr bool has_name_v = has_name<T>::value;
 
 using message_factory = std::function<std::unique_ptr<message_base>()>;
 

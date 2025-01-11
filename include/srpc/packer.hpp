@@ -49,24 +49,6 @@ private:
     T               _value;
 }; 
 
-template <typename T, typename = void>
-struct has_fields : std::false_type {};
-
-template <typename T>
-struct has_fields<T, std::void_t<decltype(T::fields)>> : std::true_type {};
-
-template <typename T>
-constexpr bool has_fields_v = has_fields<T>::value;
-
-template <typename T, typename = void>
-struct has_name : std::false_type {};
-
-template <typename T>
-struct has_name<T, std::void_t<decltype(T::name)>> : std::true_type {};
-
-template <typename T>
-constexpr bool has_name_v = has_name<T>::value;
-
 class packer {
 public:
     using ptr = std::shared_ptr<packer>;
@@ -191,9 +173,7 @@ private:
     template <typename T> requires has_fields_v<T>
     constexpr void pack_struct(T const& arg) noexcept {
         std::apply(
-            [this, &arg] (auto... member) { 
-                (pack_arg(arg.*(decltype(member)::member_ptr)), ...); 
-            },
+            [this, &arg] (const auto&... member) { (pack_arg(arg.*(std::get<MEMBER_ADDR>(member))), ...); },
             T::fields
         );
     }
