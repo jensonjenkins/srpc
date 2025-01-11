@@ -14,7 +14,7 @@ struct single_primitive : public message_base {
     // overrides 
     static constexpr const char* name = "single_primitive";
     static constexpr auto fields = std::make_tuple(
-        MESSAGE_FIELD(single_primitive, arg1)
+        STRUCT_MEMBER(single_primitive, arg1)
     );
 
     constexpr bool operator==(const single_primitive& other) const noexcept { return arg1 == other.arg1; }
@@ -33,10 +33,10 @@ struct multiple_primitives : public message_base {
     // overrides 
     static constexpr const char* name = "multiple_primitives";
     static constexpr auto fields = std::make_tuple(
-        MESSAGE_FIELD(multiple_primitives, arg1),
-        MESSAGE_FIELD(multiple_primitives, arg2),
-        MESSAGE_FIELD(multiple_primitives, arg3),
-        MESSAGE_FIELD(multiple_primitives, arg4)
+        STRUCT_MEMBER(multiple_primitives, arg1),
+        STRUCT_MEMBER(multiple_primitives, arg2),
+        STRUCT_MEMBER(multiple_primitives, arg3),
+        STRUCT_MEMBER(multiple_primitives, arg4)
     );
 
     constexpr bool operator==(const multiple_primitives& other) const noexcept { 
@@ -63,9 +63,9 @@ struct nested_message : public message_base {
     // overrides
     static constexpr const char* name = "nested_message";
     static constexpr auto fields = std::make_tuple(
-        MESSAGE_FIELD(nested_message, arg1),
-        MESSAGE_FIELD(nested_message, arg2),
-        MESSAGE_FIELD(nested_message, arg3)
+        STRUCT_MEMBER(nested_message, arg1),
+        STRUCT_MEMBER(nested_message, arg2),
+        STRUCT_MEMBER(nested_message, arg3)
     );
 
     constexpr bool operator==(const nested_message& other) const noexcept { 
@@ -243,7 +243,7 @@ TEST_CASE("pack response", "[pack][response]") {
         packer pr;
         response_t<nested_message> res;
         res.set_value(std::move(nm));
-        res.set_code(RPC_ERR_FUNCTION_NOT_REGISTERRED);
+        res.set_code(RPC_ERR_FUNCTION_NOT_REGISTERED);
         pr.pack_response(res);
 
         std::vector<uint8_t> packed {
@@ -431,7 +431,7 @@ TEST_CASE("unpack response", "[unpack][response]") {
         packer pr(bytes);
         response_t<nested_message> r = pr.unpack_response<nested_message>();
         REQUIRE(r.value() == nm); 
-        REQUIRE(r.code() == RPC_ERR_FUNCTION_NOT_REGISTERRED);
+        REQUIRE(r.code() == RPC_ERR_FUNCTION_NOT_REGISTERED);
     }
 }
 

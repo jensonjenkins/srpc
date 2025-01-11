@@ -5,12 +5,24 @@
 
 namespace srpc {
 
-#ifndef MESSAGE_FIELD 
-#define MESSAGE_FIELD(gen_struct, field) &gen_struct::field
+#ifndef FIELD_TO_STR 
+#define FIELD_TO_STR(field) #field
 #endif
-    
-#ifndef SERVICE_METHOD
-#define SERVICE_METHOD(gen_struct, field) std::make_tuple(#field, &gen_struct::field)
+
+template <typename T, auto Member>
+struct struct_member {
+    struct_member() = default;
+
+    static constexpr const char* member_name = FIELD_TO_STR(Member);
+    static constexpr auto member_ptr = Member;
+};
+
+#ifndef STRUCT_MEMBER_T
+#define STRUCT_MEMBER_T(struct_t, member_name) srpc::struct_member<struct_t, &struct_t::member_name>
+#endif
+
+#ifndef STRUCT_MEMBER
+#define STRUCT_MEMBER(struct_t, member_name) STRUCT_MEMBER_T(struct_t, member_name)()
 #endif
 
 struct buffer : public std::vector<uint8_t> {
@@ -24,7 +36,7 @@ struct buffer : public std::vector<uint8_t> {
     constexpr size_t offset() noexcept { return _offset; }
     constexpr const uint8_t* data() noexcept { return &(*this)[0]; }
     constexpr const uint8_t* curdata() noexcept { return &(*this)[_offset]; }
-    constexpr void increment(int32_t k) { 
+    void increment(int32_t k) {
         if (_offset + k > size()) {
             throw std::runtime_error("offset out of bounds!");
         }
@@ -83,7 +95,6 @@ struct function_traits<R (C::*)(I)>{
     using return_type = R;
 };
 
-
 /// Const member function specialization
 template <typename C, typename R, typename I>
 struct function_traits<R (C::*)(I...) const> {
@@ -91,6 +102,9 @@ struct function_traits<R (C::*)(I...) const> {
     using input_type = I;
     using return_type = R;
 };
+
+template <typename D, typename B>
+concept Derived = std::is_base_of_v<B, D>;
 
 using message_factory = std::function<std::unique_ptr<message_base>()>;
 

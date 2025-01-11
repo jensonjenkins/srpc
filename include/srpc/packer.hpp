@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core.hpp"
+#include <cstdio>
 #include <memory>
 #include <vector>
 #include <string>
@@ -13,7 +14,7 @@ namespace srpc {
 
 enum rpc_status_code : uint8_t {
 	RPC_SUCCESS = 0,
-	RPC_ERR_FUNCTION_NOT_REGISTERRED,
+	RPC_ERR_FUNCTION_NOT_REGISTERED,
 	RPC_ERR_RECV_TIMEOUT
 };
 
@@ -48,6 +49,24 @@ private:
     T               _value;
 }; 
 
+template <typename T, typename = void>
+struct has_fields : std::false_type {};
+
+template <typename T>
+struct has_fields<T, std::void_t<decltype(T::fields)>> : std::true_type {};
+
+template <typename T>
+constexpr bool has_fields_v = has_fields<T>::value;
+
+template <typename T, typename = void>
+struct has_name : std::false_type {};
+
+template <typename T>
+struct has_name<T, std::void_t<decltype(T::name)>> : std::true_type {};
+
+template <typename T>
+constexpr bool has_name_v = has_name<T>::value;
+
 class packer {
 public:
     using ptr = std::shared_ptr<packer>;
@@ -71,20 +90,20 @@ public:
 
     /// To pack bytes with the method_name, service_name and message_name as header. 
     /// Used to pack the outermost struct from client to server (a client request).
-    template <typename T>
+    template <typename T> requires (has_name_v<T> && has_fields_v<T>)
     constexpr void pack_request(request_t<T> const& req) {
         pack_arg(req.method_name());
         pack_arg(T::name);
-        pack_tuple(req.value());
+        pack_struct(req.value());
     }
 
     /// To pack bytes with the message's name as the header. 
     /// Used to pack the outermost struct from server to client (a server response).
-    template <typename T>
+    template <typename T> requires (has_name_v<T> && has_fields_v<T>)
     constexpr void pack_response(response_t<T> const& resp) {
         pack_arg(resp.code());
         pack_arg(T::name);
-        pack_tuple(resp.value());
+        pack_struct(resp.value());
     }    
      
     /// To be called at the server, unpacks a client request. 
@@ -139,18 +158,21 @@ public:
         return res;
     }
     
-    /// To be called to get the message  in a buffer without metadata
+    /// To be called to get the message in a buffer without metadata
     template <typename T>
     [[nodiscard]] T* getv() noexcept {
         std::string message_name;
         *this >> message_name;
 
         auto it = message_registry.find(message_name);
-        if (it == message_registry.end()) { return nullptr; }
+        if (it == message_registry.end()) { 
+            fprintf(stderr, "message %s not found!", message_name.c_str());
+            return nullptr; 
+        }
         T* v(dynamic_cast<T*>(it->second().release()));
         v->unpack(_buf);
 
-        assert(size() == _buf->size());
+        assert(size() == 0);
      
         return v;
     }
@@ -164,11 +186,14 @@ private:
 
     template <typename T>
     constexpr void pack_arg(T const& arg) noexcept;
-
-    template <typename T>
-    constexpr void pack_tuple(T const& arg) noexcept {
+    
+    /// Packs message structs by using the T::fields tuple the message comes with
+    template <typename T> requires has_fields_v<T>
+    constexpr void pack_struct(T const& arg) noexcept {
         std::apply(
-            [this, &arg] (const auto&... field) { (pack_arg(arg.*(field)), ...); },
+            [this, &arg] (auto... member) { 
+                (pack_arg(arg.*(decltype(member)::member_ptr)), ...); 
+            },
             T::fields
         );
     }
@@ -179,7 +204,7 @@ private:
 template <typename T>
 constexpr void packer::pack_arg(T const& arg) noexcept {
     if constexpr (std::is_base_of_v<message_base, T>) {
-        pack_tuple(arg);
+        pack_struct(arg);
     } else {
         const uint8_t* data = reinterpret_cast<const uint8_t*>(&arg);
         _buf->append(data, sizeof(T));

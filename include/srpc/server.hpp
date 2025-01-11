@@ -21,7 +21,7 @@ public:
     server() = default;
     ~server() = default;
     
-    template <typename F, typename S>
+    template <typename F, typename S> 
     void register_method(std::string const& name, F func, S& instance) {
         using input_type = typename function_traits<F>::input_type;
         using return_type = typename function_traits<F>::return_type;
@@ -38,7 +38,7 @@ public:
         auto it = _function_registry.find(funcname);
         if (it == _function_registry.end()) {
             fprintf(stderr, "srpc::server::call(): function not registerred.\n");
-            (*rp) << static_cast<uint8_t>(RPC_ERR_FUNCTION_NOT_REGISTERRED);
+            (*rp) << static_cast<uint8_t>(RPC_ERR_FUNCTION_NOT_REGISTERED);
         }
 
         auto func = it->second;
@@ -47,16 +47,16 @@ public:
         return rp;
     }
     
-    /// @tparam S servicer class
-    /// @tparam F member function of S
-    /// @param func member function pointer of type F
-    /// @param instance instance of S
-    /// @param rp packer to be populated with return value (return packer)
-    /// @param cp packer containing data to be read from (client packer)
+    /// @tparam S           servicer class
+    /// @tparam F           member function of S
+    /// @param  func        member function pointer of type F
+    /// @param  instance    instance of S
+    /// @param  rp          packer to be populated with return value (return packer)
+    /// @param  cp          packer containing data to be read from (client packer)
     template <typename F, typename S>
     void call_proxy(F func, S& instance, packer* rp, packer* cp) { call_proxy(func, instance, rp, cp); }
     
-    template <typename R, typename C, typename I, typename S>
+    template <Derived<message_base> R, typename C, Derived<message_base> I, typename S>
     void call_proxy(R (C::*func)(I&), S& instance, packer* rp, packer* cp) {
         I* arg = cp->getv<I>();
         R result = (instance.*func)(*arg);
@@ -64,15 +64,14 @@ public:
 		response_t<R> response;
 		response.set_code(RPC_SUCCESS);
 		response.set_value(result);
-		(*rp) << response;
-
+        rp->pack_response(response);
     }
  
     void register_service(servicer_base const& service_instance) {
         std::apply(
-            [this, &service_instance] (const auto&... method) {
+            [this, &service_instance] (auto... method) {
                 (register_method(
-                    std::get<METHOD_NAME_IDX>(method), std::get<FUNC_PTR_IDX>(method), service_instance), ...);
+                    (decltype(method)::member_name), decltype(method)::member_ptr, service_instance), ...);
             },
             servicer_base::methods
         );

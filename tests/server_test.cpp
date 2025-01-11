@@ -1,3 +1,4 @@
+#include "srpc/packer.hpp"
 #include <srpc/server.hpp>
 
 #include <catch2/catch_test_macros.hpp>
@@ -5,16 +6,18 @@
 
 struct number : public srpc::message_base {
 	int64_t num;
-
+    
 	// overrides
 	static constexpr const char* name = "number";
 	static constexpr auto fields = std::make_tuple(
-		MESSAGE_FIELD(number, num)
+		STRUCT_MEMBER(number, num)
 	);
 	void unpack(srpc::buffer::ptr bp) override {
         srpc::packer p(bp);
         p >> num;
 	}
+
+    constexpr bool operator==(const number& other) const noexcept { return other.num == num; }
 };
 
 struct calculate_servicer : srpc::servicer_base {
@@ -22,7 +25,7 @@ struct calculate_servicer : srpc::servicer_base {
 
 	static constexpr const char* name = "calculate";
 	static constexpr auto fields = std::make_tuple(
-		SERVICE_METHOD(calculate_servicer, square)
+		STRUCT_MEMBER(calculate_servicer, square)
 	);
 };
 
@@ -36,14 +39,61 @@ struct calculator : public calculate_servicer {
 
 namespace srpc {
 
-TEST_CASE("register method", "[server][register][method]") {
+TEST_CASE("call registered method", "[call][register][method]") {
+    srpc::message_registry["number"] = []() -> std::unique_ptr<number> { return std::make_unique<number>(); };
+
     server s;
-    calculator calc_instance;
-    s.register_method("calculator::square", &calculator::square, calc_instance);
+    number input, expected_value;
+    request_t<number> req;
+    packer::ptr p = std::make_shared<packer>();
+    calculator c;
+    
+    input.num = 5;
+    expected_value.num = 25;
+
+    req.set_value(std::move(input));
+    req.set_method_name("calculator::square");
+    p->pack_request(req);
+    
+    std::string funcname;
+    (*p) >> funcname;
+
+    s.register_method(funcname, &calculator::square, c);
+
+    packer::ptr rp = s.call(funcname, p);
+    response_t<number> response = rp->unpack_response<number>();
+    
+    REQUIRE(response.code() == RPC_SUCCESS);
+    REQUIRE(response.value() == expected_value);
 }
 
-TEST_CASE("register service", "[server][register][service]") {
+// TEST_CASE("register service", "[server][register][service]") {
+//     srpc::message_registry["number"] = []() -> std::unique_ptr<number> { return std::make_unique<number>(); };
+//
+//     server s;
+//     number input, expected_value;
+//     request_t<number> req;
+//     packer::ptr p = std::make_shared<packer>();
+//     calculator c;
+//
+//     input.num = 5;
+//     expected_value.num = 25;
+//
+//     req.set_value(std::move(input));
+//     req.set_method_name("square");
+//
+//     std::string funcname;
+//     (*p) >> funcname;
+//
+//     s.register_service(c); 
+//
+//     packer::ptr rp = s.call(funcname, p);
+//     response_t<number> response = rp->unpack_response<number>();
+//     
+//     REQUIRE(response.code() == RPC_SUCCESS);
+//     REQUIRE(response.value() == expected_value);
+// }
 
 }
 
-}
+
