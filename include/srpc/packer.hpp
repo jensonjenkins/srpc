@@ -72,7 +72,7 @@ public:
 
     /// To pack bytes with the method_name, service_name and message_name as header. 
     /// Used to pack the outermost struct from client to server (a client request).
-    template <typename T> requires (has_name_v<T> && has_fields_v<T>)
+    template <SrpcMessage T>
     constexpr void pack_request(request_t<T> const& req) {
         pack_arg(req.method_name());
         pack_arg(T::name);
@@ -81,7 +81,7 @@ public:
 
     /// To pack bytes with the message's name as the header. 
     /// Used to pack the outermost struct from server to client (a server response).
-    template <typename T> requires (has_name_v<T> && has_fields_v<T>)
+    template <SrpcMessage T> 
     constexpr void pack_response(response_t<T> const& resp) {
         pack_arg(resp.code());
         pack_arg(T::name);

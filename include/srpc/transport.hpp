@@ -10,15 +10,10 @@
 #include <string>
 #include <vector>
 
-    namespace srpc {
+namespace srpc {
 
-#ifndef SOCKET_SEND_FLAGS
 #define SOCKET_SEND_FLAGS 0
-#endif
-
-#ifndef BACKLOG_SZ
 #define BACKLOG_SZ 8
-#endif
 
 struct transport {
 
@@ -33,24 +28,24 @@ struct transport {
 
         if ((status = getaddrinfo(nullptr, port.c_str(), &hints, &servinfo)) != 0) {
             fprintf(stderr, "srpc::transport::create_server_socket(): getaddrinfo error: %s\n" , gai_strerror(status));
-            exit(EXIT_FAILURE);
+            return -1;
         }
 
         if ((listening_fd = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) < 0) {
             fprintf(stderr, "srpc::transport::create_server_socket(): error creating socket.\n");
-            exit(EXIT_FAILURE);
+            return -1;
         }
 
         if (bind(listening_fd, servinfo->ai_addr, servinfo->ai_addrlen) < 0) {
             fprintf(stderr, "srpc::transport::create_server_socket(): bind failed.\n");
             close(listening_fd);
-            exit(EXIT_FAILURE);
+            return -1;
         }
 
         if (listen(listening_fd, BACKLOG_SZ) < 0) { 
             fprintf(stderr, "srpc::transport::create_server_socket(): listen failed.\n");
             close(listening_fd);
-            exit(EXIT_FAILURE);
+            return -1;
         }
 
         return listening_fd;
@@ -66,18 +61,18 @@ struct transport {
     
         if ((status = getaddrinfo(nullptr, port.c_str(), &hints, &servinfo)) != 0) {
             fprintf(stderr, "srpc::transport::create_client_socket(): getaddrinfo error: %s\n" , gai_strerror(status));
-            exit(EXIT_FAILURE);
+            return -1;
         }
 
         if ((client_fd = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) < 0) {
             fprintf(stderr, "srpc::transport::create_client_socket(): error creating socket.\n");
-            exit(EXIT_FAILURE);
+            return -1;
         }
 
         if (connect(client_fd, servinfo->ai_addr, servinfo->ai_addrlen) < 0) {
             fprintf(stderr, "srpc::transport::create_client_socket(): error connecting socket.\n");
             close(client_fd);
-            exit(EXIT_FAILURE);
+            return -1;
         }
         
         return client_fd;

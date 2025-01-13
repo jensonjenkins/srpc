@@ -9,13 +9,9 @@ namespace srpc {
 #define STRUCT_MEMBER(struct_t, member_name, member_str) std::make_tuple(member_str, &struct_t::member_name)
 #endif
 
-#ifndef MEMBER_NAME
 #define MEMBER_NAME 0
-#endif
 
-#ifndef MEMBER_ADDR
 #define MEMBER_ADDR 1
-#endif
 
 struct buffer : public std::vector<uint8_t> {
     using ptr = std::shared_ptr<buffer>;
@@ -95,9 +91,6 @@ struct function_traits<R (C::*)(I...) const> {
     using return_type = R;
 };
 
-template <typename D, typename B>
-concept Derived = std::is_base_of_v<B, D>;
-
 template <typename T, typename = void>
 struct has_methods : std::false_type {};
 
@@ -124,6 +117,15 @@ struct has_name<T, std::void_t<decltype(T::name)>> : std::true_type {};
 
 template <typename T>
 constexpr bool has_name_v = has_name<T>::value;
+
+template <typename D, typename B>
+concept Derived = std::is_base_of_v<B, D>;
+
+template <typename T>
+concept SrpcMessage = has_name_v<T> && has_fields_v<T> && Derived<T, message_base>;
+
+template <typename T>
+concept SrpcService = has_name_v<T> && has_methods_v<T> && Derived<T, servicer_base>;
 
 using message_factory = std::function<std::unique_ptr<message_base>()>;
 
