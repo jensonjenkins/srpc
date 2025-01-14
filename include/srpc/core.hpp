@@ -9,14 +9,14 @@ namespace srpc {
 #define STRUCT_MEMBER(struct_t, member_name, member_str) std::make_tuple(member_str, &struct_t::member_name)
 #endif
 
-#define MEMBER_NAME 0
-
-#define MEMBER_ADDR 1
+constexpr int MEMBER_NAME = 0;
+constexpr int MEMBER_ADDR = 1;
 
 struct buffer : public std::vector<uint8_t> {
     using ptr = std::shared_ptr<buffer>;
 
     constexpr buffer() : _offset(0) {}
+    constexpr buffer(const uint8_t* bytes, size_t len) : _offset(0), std::vector<uint8_t>(bytes, bytes + len) {} 
     constexpr buffer(std::vector<uint8_t> const& bytes) : _offset(0), std::vector<uint8_t>(bytes) {} 
     constexpr buffer(std::vector<uint8_t>&& bytes) : _offset(0), std::vector<uint8_t>(std::move(bytes)) {} 
     

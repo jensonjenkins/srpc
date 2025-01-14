@@ -18,7 +18,7 @@ enum rpc_status_code : uint8_t {
 	RPC_ERR_RECV_TIMEOUT
 };
 
-template <typename T>
+template <SrpcMessage T>
 class request_t {
 public:
     T value() const { return _value; }
@@ -32,7 +32,7 @@ private:
     T           _value;
 };
 
-template <typename T>
+template <SrpcMessage T>
 class response_t {
 public:
     response_t() : _code(RPC_SUCCESS) {};
@@ -54,6 +54,7 @@ public:
     using ptr = std::shared_ptr<packer>;
 
     packer() { _buf = std::make_shared<buffer>(); }
+    packer(const uint8_t* bytes, size_t len) { _buf = std::make_shared<buffer>(bytes, len); }
     packer(std::vector<uint8_t> const& bytes) { _buf = std::make_shared<buffer>(bytes); }
     packer(std::vector<uint8_t>&& bytes) { _buf = std::make_shared<buffer>(std::move(bytes)); }
     packer(buffer::ptr buf_ptr) : _buf(buf_ptr) {}
@@ -90,7 +91,7 @@ public:
      
     /// To be called at the server, unpacks a client request. 
     /// @tparam R request struct type
-    template <typename R>
+    template <SrpcMessage R>
     [[nodiscard]] request_t<R> unpack_request() noexcept { 
         request_t<R> req;
 
@@ -115,7 +116,7 @@ public:
 
     /// To be called at the client side, unpacks a server response.
     /// @tparam R response struct type
-    template <typename R>
+    template <SrpcMessage R>
     [[nodiscard]] response_t<R> unpack_response() noexcept {
         response_t<R> res;
         
@@ -141,7 +142,7 @@ public:
     }
     
     /// To be called to get the message in a buffer without metadata
-    template <typename T>
+    template <SrpcMessage T>
     [[nodiscard]] T* getv() noexcept {
         std::string message_name;
         *this >> message_name;
@@ -198,9 +199,9 @@ inline void packer::pack_arg<std::string>(std::string const& arg) noexcept {
     _buf->append(arg.begin(), arg.end());
 }
 
-/// const char* const& might be a bit confusing. essentially its a const reference (can't reassign pointer)
-/// to a const char pointer (pointer to a const char) meaning you can't modify the object it is pointing to.
-/// so you cant modify nor can you modify the pointer to point to something else.
+/// const char* const& might be a bit confusing (for myself at least). essentially its a const reference 
+/// (can't reassign pointer) to a const char pointer (pointer to a const char) meaning you can't modify the object 
+/// it is pointing to. so you cant modify nor can you modify the pointer to point to something else.
 template <>
 inline void packer::pack_arg<const char*>(const char* const& arg) noexcept {
     size_t length = std::strlen(arg);

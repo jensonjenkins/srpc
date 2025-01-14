@@ -22,20 +22,21 @@ struct number : public srpc::message_base {
     constexpr bool operator==(const number& other) const noexcept { return other.num == num; }
 };
 
+/// CLIENT 
 struct calculate_stub {
 	calculate_stub() {
-		if (!initialized) {
+		if (!_init) {
 			srpc::message_registry["number"] = []() -> std::unique_ptr<number> {
 				return std::make_unique<number>();
 			};
 		}
-		initialized = true;
+		_init = true;
 	}
-    ~calculate_stub() { close(this->socket_fd); }
+    ~calculate_stub() { close(this->_socket); }
 
 	void register_insecure_channel(std::string server_ip, std::string port) {
-		if (socket_fd != -1) { close(socket_fd); }
-		this->socket_fd = srpc::transport::create_client_socket(server_ip, port);
+		if (_socket != -1) { close(_socket); }
+		_socket = srpc::transport::create_client_socket(server_ip, port);
 	}
 
 	number square(number& req) {
@@ -45,49 +46,23 @@ struct calculate_stub {
 		request.set_value(std::move(req));
 		pr.pack_request(request);
 
-		srpc::transport::send_data(this->socket_fd, *pr.buf());
-		std::vector<uint8_t> res = srpc::transport::recv_data(this->socket_fd);
-        srpc::packer rpr(res);
+		srpc::transport::send_data(_socket, (*pr.buf()).data(), pr.size());
+        srpc::message_t res = srpc::transport::recv_data(_socket);
+        srpc::packer rpr(res.data(), res.size());
 
 		srpc::response_t<number> msg = rpr.unpack_response<number>();
+
 		return msg.value();
 	}
+
 private:
-	static bool initialized;
-	int32_t socket_fd = -1;
+	static bool _init;
+	int32_t     _socket = -1;
 };
 
-inline bool calculate_stub::initialized = false;
+inline bool calculate_stub::_init = false;
 
-void srpc::server::__testable_start(std::string const&& port) {
-    int32_t listening_fd = transport::create_server_socket(port), accepted_fd;
-    struct sockaddr_storage client_addr;
-    socklen_t addr_size;
-
-    addr_size = sizeof(client_addr);
-    if ((accepted_fd = accept(listening_fd, 
-                    reinterpret_cast<struct sockaddr*>(&client_addr), &addr_size)) < 0) {
-        fprintf(stderr, "srpc::server::start(): accept failed.\n");
-    }
-
-    std::vector<uint8_t> bytes = transport::recv_data(accepted_fd);  
-
-    // deserialize the method name and service name        
-    packer::ptr p = std::make_shared<packer>(std::move(bytes));
-    std::string funcname;
-    (*p) >> funcname;
-
-    // call the service's method
-    packer::ptr r = call(funcname, p);
-    assert(r->offset() == 0);
-
-    std::vector<uint8_t> res(r->data(), r->data() + r->size());
-    transport::send_data(accepted_fd, res);
-
-    close(accepted_fd);
-    close(listening_fd);
-}
-
+/// SERVICER
 struct calculate_servicer : srpc::servicer_base {
 	virtual number square(number& req) { throw std::runtime_error("Method not implemented!"); }
 
@@ -104,6 +79,34 @@ struct calculator : public calculate_servicer {
         return out;  
     }
 };
+
+void srpc::server::__testable_start(std::string const&& port) {
+    int32_t listening_fd = transport::create_server_socket(port), accepted_fd;
+    struct sockaddr_storage client_addr;
+    socklen_t addr_size;
+
+    addr_size = sizeof(client_addr);
+    if ((accepted_fd = accept(listening_fd, 
+                    reinterpret_cast<struct sockaddr*>(&client_addr), &addr_size)) < 0) {
+        fprintf(stderr, "srpc::server::start(): accept failed.\n");
+    }
+
+    srpc::message_t msg = transport::recv_data(accepted_fd);  
+
+    // deserialize the method name and service name        
+    packer::ptr p = std::make_shared<packer>(msg.data(), msg.size());
+    std::string funcname;
+    (*p) >> funcname;
+
+    // call the service's method
+    packer::ptr r = call(funcname, p);
+    assert(r->offset() == 0);
+
+    transport::send_data(accepted_fd, r->data(), r->size());
+
+    close(accepted_fd);
+    close(listening_fd);
+}
 
 namespace srpc {
 

@@ -55,10 +55,10 @@ public:
                 continue;
             }
 
-            std::vector<uint8_t> bytes = transport::recv_data(accepted_fd);  
+            message_t msg = transport::recv_data(accepted_fd);  
 
             // deserialize the method name and service name        
-            packer::ptr p = std::make_shared<packer>(std::move(bytes));
+            packer::ptr p = std::make_shared<packer>(msg.data(), msg.size());
             std::string funcname;
             (*p) >> funcname;
 
@@ -66,8 +66,7 @@ public:
             packer::ptr r = call(funcname, p);
             assert(r->offset() == 0);
 
-            std::vector<uint8_t> res(r->data(), r->data() + r->size());
-            transport::send_data(accepted_fd, res);
+            transport::send_data(accepted_fd, r->data(), r->size());
 
             close(accepted_fd);
         }
@@ -81,7 +80,7 @@ private:
     /// @brief
     /// @tparam F
     /// @tparam S
-    template <typename F, typename S> 
+    template <typename F, SrpcService S> 
     void register_method(std::string const& name, F func, S& instance) {
         using input_type = typename function_traits<F>::input_type;
         using return_type = typename function_traits<F>::return_type;
@@ -98,16 +97,16 @@ private:
     /// @param  instance    instance of S
     /// @param  rp          packer to be populated with return value (return packer)
     /// @param  cp          packer containing data to be read from (client packer)
-    template <typename F, typename S>
+    template <typename F, SrpcService S>
     void call_proxy(F func, S& instance, packer* rp, packer* cp) { call_proxy_impl(func, instance, rp, cp); }
     
     
     /// @tparam R function return type 
     /// @tparam I function input type
-    template <Derived<message_base> R, typename C, Derived<message_base> I, typename S>
+    template <SrpcMessage R, typename C, SrpcMessage I, SrpcService S>
     void call_proxy_impl(R (C::*func)(I&), S& instance, packer* rp, packer* cp) {
         I* arg = cp->getv<I>();
-        R result = (instance.*func)(*arg);
+        R result = (instance.*func)(*arg); // function call not a cast
 
         response_t<R> response;
         response.set_code(RPC_SUCCESS);
