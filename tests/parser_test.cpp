@@ -45,15 +45,15 @@ TEST_CASE("Parse Message", "[parse][message]") {
         contract::element_index_map.clear();
         std::string input = R"(
             message Request {
-                string arg1 = 1;
-                optional int32 arg2 = 2;
-                bool arg3 = 3;
+                string arg1;
+                int32 arg2;
+                bool arg3;
             }
         )";
         std::vector<field_descriptor> test_case {
-            {0, 1, 1, "arg1", "std::string"}, 
-            {1, 1, 2, "arg2", "int32_t"}, 
-            {0, 1, 3, "arg3", "bool"}, 
+            {1, "arg1", "std::string"}, 
+            {1, "arg2", "int32_t"}, 
+            {1, "arg3", "bool"}, 
         };
 
         lexer l(input);
@@ -68,8 +68,6 @@ TEST_CASE("Parse Message", "[parse][message]") {
         CHECK(msg->name == "Request");
         for (int i = 0; i < test_case.size(); i++) {
             auto field = msg->fields()[i].get();
-            CHECK(field->is_optional == test_case[i].is_optional);
-            CHECK(field->field_number == test_case[i].field_number);
             CHECK(field->name == test_case[i].name);
             CHECK(field->type == test_case[i].type);
         }
@@ -80,25 +78,25 @@ TEST_CASE("Parse Message", "[parse][message]") {
         contract::element_index_map.clear();
         std::string input = R"(
             message Engine {
-                int8 pistons = 1;
-                int32 horsepower = 2;
-                char model = 3;
+                int8 pistons;
+                int32 horsepower;
+                char model;
             }
 
             message Car {
-                Engine engine = 1;
-                optional string color = 2;
+                Engine engine;
+                string color;
             }
         )";
         std::vector<field_descriptor> engine_field_test_case {
-            {0, 1, 1, "pistons", "int8_t"}, 
-            {0, 1, 2, "horsepower", "int32_t"}, 
-            {0, 1, 3, "model", "char"}, 
+            {1, "pistons", "int8_t"}, 
+            {1, "horsepower", "int32_t"}, 
+            {1, "model", "char"}, 
         };
 
         std::vector<field_descriptor> car_field_test_case {
-            {0, 0, 1, "engine", "Engine"},
-            {1, 1, 2, "color", "std::string"},
+            {0, "engine", "Engine"},
+            {1, "color", "std::string"},
         };
         
         lexer l(input);
@@ -114,8 +112,6 @@ TEST_CASE("Parse Message", "[parse][message]") {
         for (int i = 0; i < engine_field_test_case.size(); i++) {
             INFO("engine_field_test_case: "<<i);
             auto field = engine_msg->fields()[i].get();
-            CHECK(field->is_optional == engine_field_test_case[i].is_optional);
-            CHECK(field->field_number == engine_field_test_case[i].field_number);
             CHECK(field->name == engine_field_test_case[i].name);
             CHECK(field->type == engine_field_test_case[i].type);
         }
@@ -126,8 +122,6 @@ TEST_CASE("Parse Message", "[parse][message]") {
         for (int i = 0; i < car_field_test_case.size(); i++) {
             INFO("car_field_test_case: "<<i);
             auto field = car_msg->fields()[i].get();
-            CHECK(field->is_optional == car_field_test_case[i].is_optional);
-            CHECK(field->field_number == car_field_test_case[i].field_number);
             CHECK(field->name == car_field_test_case[i].name);
             CHECK(field->type == car_field_test_case[i].type);
         }

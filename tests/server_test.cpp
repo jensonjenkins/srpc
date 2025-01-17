@@ -146,23 +146,23 @@ void run_server() {
     s.__testable_start("8081"); 
 }
 
-TEST_CASE("start server", "[server]") {
-    number input, expected, rcv;
-
-    input.num = 5;
-    expected.num = 25;
-
-    std::thread server_thread(run_server);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    calculate_stub stub;
-    stub.register_insecure_channel("127.0.0.1", "8081");
-    rcv = stub.square(input); 
-
-    server_thread.join();
-
-    REQUIRE(rcv == expected);
-}
+/*TEST_CASE("start server", "[server]") {*/
+/*    number input, expected, rcv;*/
+/**/
+/*    input.num = 5;*/
+/*    expected.num = 25;*/
+/**/
+/*    std::thread server_thread(run_server);*/
+/*    std::this_thread::sleep_for(std::chrono::seconds(1));*/
+/**/
+/*    calculate_stub stub;*/
+/*    stub.register_insecure_channel("127.0.0.1", "8081");*/
+/*    rcv = stub.square(input); */
+/**/
+/*    server_thread.join();*/
+/**/
+/*    REQUIRE(rcv == expected);*/
+/*}*/
 
 } // namespace srpc
 

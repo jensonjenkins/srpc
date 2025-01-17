@@ -1,7 +1,9 @@
 #pragma once
 
 #include "token.hpp"
+#include <memory>
 #include <cstddef>
+#include <algorithm>
 #include <vector>
 #include <unordered_map>
 
@@ -16,15 +18,12 @@ struct rpc_element {
 };
 
 struct field_descriptor {
-    bool        is_optional;
     bool        is_primitive;
-    int         field_number;
     std::string name;
     std::string type;
 
     field_descriptor() {}
-    field_descriptor(bool opt, bool ip, int fn, std::string name, std::string t) 
-        : is_optional(opt), is_primitive(ip), field_number(fn), name(name), type(t) {};
+    field_descriptor(bool ip, std::string name, std::string t) : is_primitive(ip), name(name), type(t) {};
 };
 
 class message : public rpc_element {

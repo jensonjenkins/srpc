@@ -43,10 +43,6 @@ public:
         token cur_token("[UNSET]", token_t::ILLEGAL);
         
         switch(_cur_char) {
-        case '=':
-            cur_token.literal = "=";
-            cur_token.type = token_t::ASSIGN;
-            break;
         case '{':
             cur_token.literal = "{";
             cur_token.type = token_t::LBRACE;
@@ -252,10 +248,6 @@ public:
         FUNCTION_TRACE;
 
         field_descriptor* fd = new field_descriptor;
-        if (cur_token_is(token_t::OPTIONAL)) {
-            fd->is_optional = true;
-            next_token();
-        }
 
         fd->is_primitive = 1;
         switch (_cur_token.type) {
@@ -300,11 +292,6 @@ public:
         if (!expect_peek(token_t::IDENTIFIER)) { return nullptr; }
 
         fd->name = _cur_token.literal;
-
-        if (!expect_peek(token_t::ASSIGN)) { return nullptr; }
-        if (!expect_peek(token_t::INT_LIT)) { return nullptr; }
-        
-        fd->field_number = std::stoi(_cur_token.literal);
 
         if (!expect_peek(token_t::SEMICOLON)) { return nullptr; }
         next_token();

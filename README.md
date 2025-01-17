@@ -1,9 +1,9 @@
 # sRPC
-A very simple implementation of a (gRPC-inspired) RPC framework.
+A simple implementation of a (gRPC-inspired) RPC framework.
 
 ## Example Code:  
   
-### Define Contract File 
+### Define the contract file
 ```proto
 message Number {
     int32 num;
@@ -28,7 +28,7 @@ struct Calculator : public Calculator_servicer {
 ```
 
 ```cpp
-#include <srpc.hpp>
+#include <srpc/server.hpp>
 /* Also include the generated file */
 ...
 
@@ -41,8 +41,7 @@ s.start("8080"); // defaults to localhost
 
 ### Client
 ```cpp
-#include <srpc.hpp>
-...
+/* Include the generated file */
 
 Calculator stub(); // instantiate the service
 stub.register_insecure_channel("127.0.0.1", "8080");

@@ -12,11 +12,10 @@ struct expected {
 };
 
 TEST_CASE("Symbol Test", "[symbol]") {
-    std::string input = "{}=";
+    std::string input = "{}";
     std::vector<expected> test_case = {
         {token_t::LBRACE, "{"},
         {token_t::RBRACE, "}"},
-        {token_t::ASSIGN, "="},
         {token_t::EOFT, ""}
     };
 
@@ -32,11 +31,10 @@ TEST_CASE("Symbol Test", "[symbol]") {
 }
 
 TEST_CASE("Keyword Test", "[keyword]") {
-    std::string input = "service message optional int8 int16 int32 int64 char string";
+    std::string input = "service message int8 int16 int32 int64 char string";
     std::vector<expected> test_case = {
         {token_t::SERVICE, "service"},
         {token_t::MESSAGE, "message"},
-        {token_t::OPTIONAL, "optional"},
         {token_t::INT8_T, "int8"},
         {token_t::INT16_T, "int16"},
         {token_t::INT32_T, "int32"},
@@ -61,9 +59,9 @@ TEST_CASE("Message", "[message]") {
     SECTION("Basic Message") {
         std::string input = R"(
             message Request {
-                string arg1 = 1;
-                optional int32 arg2 = 2;
-                bool arg3 = 3;
+                string arg1;
+                int32 arg2;
+                bool arg3;
             }
         )";
         std::vector<expected> test_case = {
@@ -73,21 +71,14 @@ TEST_CASE("Message", "[message]") {
 
             {token_t::STRING_T, "string"},
             {token_t::IDENTIFIER, "arg1"},
-            {token_t::ASSIGN, "="},
-            {token_t::INT_LIT, "1"},
             {token_t::SEMICOLON, ";"},
 
-            {token_t::OPTIONAL, "optional"},
             {token_t::INT32_T, "int32"},
             {token_t::IDENTIFIER, "arg2"},
-            {token_t::ASSIGN, "="},
-            {token_t::INT_LIT, "2"},
             {token_t::SEMICOLON, ";"},
 
             {token_t::BOOL_T, "bool"},
             {token_t::IDENTIFIER, "arg3"},
-            {token_t::ASSIGN, "="},
-            {token_t::INT_LIT, "3"},
             {token_t::SEMICOLON, ";"},
 
             {token_t::RBRACE, "}"},

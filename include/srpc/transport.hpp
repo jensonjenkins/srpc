@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <string>
+#include <cstring>
 
 namespace srpc {
 

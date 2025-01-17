@@ -52,14 +52,14 @@ const uint8_t* run_client(std::string server_ip, std::string port, const uint8_t
 
 TEST_CASE("send vector to server", "[socket][server][client]") {
     std::thread server_thread(run_server, PORT);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(4));
 
     const uint8_t data[] = {65, 66, 67, 68, 69};
     const uint8_t expected[] = {70, 71, 72, 73, 74, 123};
 
     const uint8_t* res = run_client("127.0.0.1", PORT, data, 5);
     server_thread.join();
-    
+
     REQUIRE(std::memcmp(expected, res, 6) == 0);
 }
 

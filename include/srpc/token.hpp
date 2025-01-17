@@ -8,31 +8,29 @@ namespace srpc {
 
 enum class token_t : size_t {
     ILLEGAL     = 0,
-    EOFT        = 1,
+    EOFT        ,
 
-    IDENTIFIER  = 2,
-    MESSAGE     = 3,
-    SERVICE     = 4,
-    OPTIONAL    = 5,
-    METHOD      = 6,
-    RETURNS     = 7,
+    IDENTIFIER  ,
+    MESSAGE     ,
+    SERVICE     ,
+    METHOD      ,
+    RETURNS     ,
 
-    LBRACE      = 8,
-    RBRACE      = 9,
-    LPAREN      = 10,
-    RPAREN      = 11,
-    ASSIGN      = 12,
-    SEMICOLON   = 13,   
+    LBRACE      ,
+    RBRACE      ,
+    LPAREN      ,
+    RPAREN      ,
+    SEMICOLON   ,   
 
-    INT8_T      = 14,
-    INT16_T     = 15,
-    INT32_T     = 16,
-    INT64_T     = 17,
-    CHAR_T      = 18,
-    STRING_T    = 19,
-    BOOL_T      = 20,
+    INT8_T      ,
+    INT16_T     ,
+    INT32_T     ,
+    INT64_T     ,
+    CHAR_T      ,
+    STRING_T    ,
+    BOOL_T      ,
 
-    INT_LIT     = 21,   
+    INT_LIT     ,   
 
     COUNT
 };
@@ -40,7 +38,6 @@ enum class token_t : size_t {
 const std::unordered_map<std::string_view, token_t> keywords {
     {"message", token_t::MESSAGE},
     {"service", token_t::SERVICE},
-    {"optional", token_t::OPTIONAL},
     {"method", token_t::METHOD},
     {"returns", token_t::RETURNS},
     {"int8", token_t::INT8_T},
@@ -54,8 +51,8 @@ const std::unordered_map<std::string_view, token_t> keywords {
 
 const std::array<std::string, static_cast<size_t>(token_t::COUNT)> inv_map {
     "ILLEGAL", "EOFT",
-    "IDENTIFIER", "MESSAGE", "SERVICE", "OPTIONAL", "METHOD", "RETURNS"
-    "LBRACE", "RBRACE", "LPAREN", "RPAREN", "ASSIGN", "SEMICOLON"
+    "IDENTIFIER", "MESSAGE", "SERVICE", "METHOD", "RETURNS"
+    "LBRACE", "RBRACE", "LPAREN", "RPAREN", "SEMICOLON"
     "INT8_T", "INT16_T", "INT32_T", "INT64_T", "CHAR_T", "STRING_T", "BOOL_T",
     "INT_LIT"
 };

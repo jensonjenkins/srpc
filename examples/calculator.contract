@@ -1,0 +1,17 @@
+message Number {
+    int32 num;
+}
+
+message TwoNumbers {
+    int32 left;
+    int32 right;
+}
+
+service Calculator {
+    method add(TwoNumbers) returns (Number);
+    method subtract(TwoNumbers) returns (Number);
+    method multiply(TwoNumbers) returns (Number);
+    method divide(TwoNumbers) returns (Number);
+
+    method square(Number) returns (Number);
+}

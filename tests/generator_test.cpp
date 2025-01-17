@@ -22,8 +22,8 @@ TEST_CASE("generate header file message", "[generate][message]") {
         contract::element_index_map.clear();
         std::string input = R"(
             message Request {
-                string arg1 = 1;
-                int32 arg2 = 2;
+                string arg1;
+                int32 arg2;
             }
         )";
         lexer l(input);
@@ -59,13 +59,13 @@ TEST_CASE("generate header file message", "[generate][message]") {
         contract::elements.clear();
         std::string input = R"(
             message nested_request {
-                bool random_flag = 1;
-                int64 i64 = 2;
+                bool random_flag;
+                int64 i64;
             }
             message request {
-                string arg1 = 1;
-                int32 arg2 = 2;
-                nested_request arg3 = 3;
+                string arg1;
+                int32 arg2;
+                nested_request arg3;
             }
         )";
         lexer l(input);
@@ -136,7 +136,7 @@ TEST_CASE("generate header file service", "[generate][service]") {
 
             response some_method(request& req) {
                 srpc::packer pr;
-                srpc::request_t<number> request;
+                srpc::request_t<request> request;
                 request.set_method_name("my_service_servicer::some_method");
                 request.set_value(std::move(req));
                 pr.pack_request(request);
@@ -175,7 +175,7 @@ TEST_CASE("generate header file service", "[generate][service]") {
         contract::element_index_map.clear();
         std::string input = R"(
         message number {
-            int64 num = 1;
+            int64 num;
         }
         service calculate {
             method square(number) returns (number);

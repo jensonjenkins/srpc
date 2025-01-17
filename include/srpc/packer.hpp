@@ -7,6 +7,7 @@
 #include <string>
 #include <cstdint>
 #include <cassert>
+#include <cstring>
 #include <type_traits>
 #include <unordered_map>
 
@@ -59,10 +60,10 @@ public:
     packer(std::vector<uint8_t>&& bytes) { _buf = std::make_shared<buffer>(std::move(bytes)); }
     packer(buffer::ptr buf_ptr) : _buf(buf_ptr) {}
 
-    constexpr const uint8_t* data() { return _buf->curdata(); }
-    constexpr size_t size() { return _buf->cursize(); }
-    constexpr size_t offset() const noexcept { return _buf->offset(); }
-    constexpr void clear() noexcept { _buf->reset(); }
+    const uint8_t* data() { return _buf->curdata(); }
+    size_t size() { return _buf->cursize(); }
+    size_t offset() const noexcept { return _buf->offset(); }
+    void clear() noexcept { _buf->reset(); }
     buffer::ptr buf() noexcept { return _buf; }
    
     template <typename T>
@@ -164,9 +165,6 @@ private:
     template <typename T>
     constexpr void pipe_output(T& v) noexcept;
     
-    template <>
-    void pipe_output(std::string& v) noexcept; 
-
     template <typename T>
     constexpr void pack_arg(T const& arg) noexcept;
     

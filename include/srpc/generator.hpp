@@ -80,7 +80,7 @@ struct generator {
         msg_stream << "\t" << m->output_t << " " << m->name << "(" << m->input_t << "& req) {\n";
 
         msg_stream << "\t\tsrpc::packer pr;\n";
-        msg_stream << "\t\tsrpc::request_t<number> request;\n";
+        msg_stream << "\t\tsrpc::request_t<" << m->input_t << "> request;\n";
         msg_stream << "\t\trequest.set_method_name(\"" << svc_name << "_servicer" << "::" << m->name << "\");\n";
         msg_stream << "\t\trequest.set_value(std::move(req));\n";
         msg_stream << "\t\tpr.pack_request(request);\n\n";
